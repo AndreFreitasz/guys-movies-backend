@@ -10,8 +10,8 @@ export class MoviesController {
     return this.moviesService.getTopMovies();
   }
 
-  @Get("popular/providers")
+  @Get("popularByproviders")
   getAllTopMoviesProviders() {
-    return this.moviesService.getAllTopMoviesProviders();
+    return this.moviesService.getAllTopMoviesByProviders();
   }
 }
