@@ -21,44 +21,6 @@ export class MoviesService {
     return dataMovies.results;
   }
 
-  private async getTopMoviesProvider(providerId: number) {
-    const url = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
-
-    const topMoviesProviders = await this.fetchFromApiMovies(url);
-    return topMoviesProviders;
-  }
-
-  async getAllTopMoviesByProviders() {
-    try {
-      const providersUrl = `${this.baseUrl}/watch/providers/movie?api_key=${this.apiKey}&language=pt-BR&watch_region=BR`;
-      const providersResponse = await this.fetchFromApiMovies(providersUrl);
-      const providers = providersResponse;
-
-      const allMoviesProviders = await Promise.all(
-        providers.map((provider: any) =>
-          this.getTopMoviesProvider(provider.provider_id).then(
-            (movies) => ({
-              provider: {
-                id: provider.provider_id,
-                name: provider.provider_name,
-                logoUrl: `https://image.tmdb.org/t/p/w92${provider.logo_path}`,
-              },
-              movies,
-            }),
-          ),
-        ),
-      );
-
-      return allMoviesProviders;
-    } catch (error) {
-      console.error("Error fetching all top movies:", error);
-      throw new HttpException(
-        "Failed to fetch all top movies",
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
   async getTopMovies() {
     try {
       const url = `${this.baseUrl}/movie/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
@@ -73,7 +35,55 @@ export class MoviesService {
     } catch (error) {
       console.error("Error fetching top movies:", error);
       throw new HttpException(
-        "Failed to fetch top movies",
+        `Failed to fetch top movies: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  private async getTopMoviesProvider(providerId: number) {
+    const url = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
+
+    const topMoviesProviders = await this.fetchFromApiMovies(url);
+    return topMoviesProviders;
+  }
+
+  async getAllTopMoviesByProviders() {
+    try {
+      const providersUrl = `${this.baseUrl}/watch/providers/movie?api_key=${this.apiKey}&language=pt-BR&watch_region=BR`;
+      const providers = await this.fetchFromApiMovies(providersUrl);
+      const limitedProviders = providers.slice(0, 11);
+
+      const allMoviesProviders = await Promise.all(
+        limitedProviders.map((provider: any) =>
+          this.getTopMoviesProvider(provider.provider_id).then((movies) => ({
+            provider: {
+              id: provider.provider_id,
+              name: provider.provider_name,
+              logoUrl: `https://image.tmdb.org/t/p/w92${provider.logo_path}`,
+            },
+            movies,
+          })),
+        ),
+      );
+
+      return allMoviesProviders;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to fetch all top movies by providers: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getTopMoviesByGenres(genreId: number) {
+    try {
+      const genresUrl = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}`;
+      const moviesByGenre = await this.fetchFromApiMovies(genresUrl);
+      return moviesByGenre;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to fetch top movies by genre: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -1,4 +1,4 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Param, Query } from "@nestjs/common";
 import { MoviesService } from "./movies.service";
 
 @Controller("movies")
@@ -13,5 +13,10 @@ export class MoviesController {
   @Get("popularByproviders")
   getAllTopMoviesProviders() {
     return this.moviesService.getAllTopMoviesByProviders();
+  }
+
+  @Get("popularBygenres/:genreId")
+  getTopMoviesByGenres(@Param("genreId") genreId: number) {
+    return this.moviesService.getTopMoviesByGenres(genreId);
   }
 }
