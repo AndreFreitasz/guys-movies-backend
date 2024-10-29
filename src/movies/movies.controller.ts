@@ -1,22 +1,22 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { MoviesService } from "./movies.service";
+import { Controller, Get, Param } from '@nestjs/common';
+import { MoviesService } from './movies.service';
 
-@Controller("movies")
+@Controller('movies')
 export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
-  @Get("popular")
+  @Get('popular')
   getTopMovies() {
     return this.moviesService.getTopMovies();
   }
 
-  @Get("popularByproviders")
+  @Get('popularByProviders')
   getAllTopMoviesProviders() {
     return this.moviesService.getAllTopMoviesByProviders();
   }
 
-  @Get("popularBygenres/:genreId")
-  getTopMoviesByGenres(@Param("genreId") genreId: number) {
+  @Get('popularByGenres/:genreId')
+  getTopMoviesByGenres(@Param('genreId') genreId: number) {
     return this.moviesService.getTopMoviesByGenres(genreId);
   }
 }

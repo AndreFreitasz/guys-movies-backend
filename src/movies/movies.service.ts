@@ -1,14 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import * as dotenv from "dotenv";
-import axios from "axios";
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import * as dotenv from 'dotenv';
+import axios from 'axios';
 
 dotenv.config();
 
 @Injectable()
 export class MoviesService {
   private readonly apiKey = process.env.TMDB_API_KEY;
-  private readonly baseUrl = "https://api.themoviedb.org/3";
-  private readonly imageBaseUrl = "https://image.tmdb.org/t/p/w500";
+  private readonly baseUrl = 'https://api.themoviedb.org/3';
+  private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
   private async fetchFromApiMovies(url: string): Promise<any> {
     const response = await axios.get(url);
@@ -26,14 +26,14 @@ export class MoviesService {
       const url = `${this.baseUrl}/movie/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
       const topMovies = await this.fetchFromApiMovies(url);
 
-      const moviesWithImages = topMovies.results.map((movie: any) => ({
+      const moviesWithImages = topMovies.map((movie: any) => ({
         ...movie,
         poster_url: `${this.imageBaseUrl}${movie.poster_path}`,
       }));
 
       return moviesWithImages;
     } catch (error) {
-      console.error("Error fetching top movies:", error);
+      console.error('Error fetching top movies:', error);
       throw new HttpException(
         `Failed to fetch top movies: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
