@@ -15,7 +15,13 @@ async function bootstrap() {
       origin: ['http://localhost:3000', 'http://localhost:3001', 'https://guys-movies-frontend.vercel.app'],
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
     });
+  } else {
+    app.enableCors({
+      origin: '*',
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
+    });
   }
+
 
   app.listen(process.env.PORT || 3001, function () {
     console.log('Nest server listening');
