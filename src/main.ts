@@ -11,7 +11,10 @@ async function bootstrap() {
   if (process.env.NODE_ENV === 'production') {
     console.log('Production mode enabled');
     app.use(helmet());
-    app.enableCors();
+    app.enableCors({
+      origin: ['http://localhost:3000', 'https://guys-movies-frontend.vercel.app'],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
+    });
   }
 
   app.listen(process.env.PORT || 3001, function () {
