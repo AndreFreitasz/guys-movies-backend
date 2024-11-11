@@ -53,10 +53,15 @@ export class MoviesService {
       const providersUrl = `${this.baseUrl}/watch/providers/movie?api_key=${this.apiKey}&language=pt-BR&watch_region=BR`;
       const providers = await this.fetchFromApiMovies(providersUrl);
       const limitedProviders = providers.slice(0, 11);
+      const providersToRemove = [167, 47, 350];
+
+      const filteredProviders = limitedProviders.filter(
+        (provider: any) => !providersToRemove.includes(provider.provider_id),
+      );
 
       const allMoviesProviders = await Promise.all(
-        limitedProviders.map((provider: any) =>
-          this.getTopMoviesProvider(provider.provider_id).then((movies) => ({
+        filteredProviders.map((provider: any) =>
+          this.getTopMoviesProvider(provider.provider_id).then(movies => ({
             provider: {
               id: provider.provider_id,
               name: provider.provider_name,
