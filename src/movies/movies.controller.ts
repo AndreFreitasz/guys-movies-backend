@@ -19,4 +19,9 @@ export class MoviesController {
   getTopMoviesByGenres(@Param('genreId') genreId: number) {
     return this.moviesService.getTopMoviesByGenres(genreId);
   }
+
+  @Get('topRated')
+  getTopRatedMovies() {
+   return this.moviesService.getTopRatedMovies();
+  }
 }

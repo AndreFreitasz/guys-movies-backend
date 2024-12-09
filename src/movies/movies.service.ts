@@ -23,15 +23,10 @@ export class MoviesService {
 
   async getTopMovies() {
     try {
-      const url = `${this.baseUrl}/movie/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
-      const topMovies = await this.fetchFromApiMovies(url);
+      const urlTopMovies = `${this.baseUrl}/movie/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
+      const topMovies = await this.fetchFromApiMovies(urlTopMovies);
 
-      const moviesWithImages = topMovies.map((movie: any) => ({
-        ...movie,
-        poster_url: `${this.imageBaseUrl}${movie.poster_path}`,
-      }));
-
-      return moviesWithImages;
+      return topMovies;
     } catch (error) {
       console.error('Error fetching top movies:', error);
       throw new HttpException(
@@ -42,9 +37,9 @@ export class MoviesService {
   }
 
   private async getTopMoviesProvider(providerId: number) {
-    const url = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
+    const topMoviesPopularUrl = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
 
-    const topMoviesProviders = await this.fetchFromApiMovies(url);
+    const topMoviesProviders = await this.fetchFromApiMovies(topMoviesPopularUrl);
     return topMoviesProviders;
   }
 
@@ -96,6 +91,24 @@ export class MoviesService {
     } catch (error) {
       throw new HttpException(
         `Failed to fetch top movies by genre: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getTopRatedMovies() {
+    try {
+      const currentDate = new Date();
+      const lastYear = currentDate.getFullYear();
+      const startDate = `${lastYear - 1}-01-01`;
+      const endDate = `${lastYear}-12-31`;
+
+      const url = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=vote_average.desc&primary_release_date.gte=${startDate}&primary_release_date.lte=${endDate}&vote_count.gte=1500`;
+      const topRatedMovies = await this.fetchFromApiMovies(url);
+      return topRatedMovies;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to fetch top rated movies: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
