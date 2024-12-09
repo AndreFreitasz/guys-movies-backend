@@ -83,9 +83,16 @@ export class MoviesService {
 
   async getTopMoviesByGenres(genreId: number) {
     try {
-      const genresUrl = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}`;
-      const moviesByGenre = await this.fetchFromApiMovies(genresUrl);
-      return moviesByGenre;
+      const genreUrlPage1 = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=1`;
+      const genreUrlPage2 = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=2`;
+
+      const [moviesPage1, moviesPage2] = await Promise.all([
+        this.fetchFromApiMovies(genreUrlPage1),
+        this.fetchFromApiMovies(genreUrlPage2),
+      ]);
+
+      const moviesPopularByGenre = [...moviesPage1, ...moviesPage2];
+      return moviesPopularByGenre;
     } catch (error) {
       throw new HttpException(
         `Failed to fetch top movies by genre: ${error.message}`,
