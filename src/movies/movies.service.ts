@@ -1,6 +1,9 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import * as dotenv from 'dotenv';
 import axios from 'axios';
+import { Movie, MovieRaw } from './interfaces/movie.interface';
+import { ApiResponse } from './interfaces/api-response.interface';
+import { Provider, ProviderRaw, ProviderResponse } from './interfaces/provider.interface';
 
 dotenv.config();
 
@@ -10,18 +13,19 @@ export class MoviesService {
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
-  private async fetchFromApiMovies(url: string): Promise<any> {
-    const response = await axios.get(url);
+  private async fetchFromApiMovies(url: string): Promise<Movie[]> {
+    const response = await axios.get<ApiResponse<MovieRaw>>(url);
     const dataMovies = response.data;
-    dataMovies.results = dataMovies.results.map((item: any) => ({
+
+    const movies: Movie[] = dataMovies.results.map((item: MovieRaw) => ({
       ...item,
       poster_url: `${this.imageBaseUrl}${item.poster_path}`,
     }));
 
-    return dataMovies.results;
+    return movies;
   }
 
-  async getTopMovies() {
+  async getTopMovies(): Promise<Movie[]> {
     try {
       const urlTopMovies = `${this.baseUrl}/movie/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
       const topMovies = await this.fetchFromApiMovies(urlTopMovies);
@@ -36,26 +40,28 @@ export class MoviesService {
     }
   }
 
-  private async getTopMoviesProvider(providerId: number) {
+  private async getTopMoviesProvider(providerId: number): Promise<Movie[]> {
     const topMoviesPopularUrl = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
 
-    const topMoviesProviders = await this.fetchFromApiMovies(topMoviesPopularUrl);
+    const topMoviesProviders =
+      await this.fetchFromApiMovies(topMoviesPopularUrl);
     return topMoviesProviders;
   }
 
-  async getAllTopMoviesByProviders() {
+  async getAllTopMoviesByProviders(): Promise<{ provider: Provider; movies: Movie[] }[]> {
     try {
       const providersUrl = `${this.baseUrl}/watch/providers/movie?api_key=${this.apiKey}&language=pt-BR&watch_region=BR`;
-      const providers = await this.fetchFromApiMovies(providersUrl);
+      const response = await axios.get<ProviderResponse>(providersUrl);
+      const providers = response.data.results;
       const limitedProviders = providers.slice(0, 11);
       const providersToRemove = [167, 47, 350];
 
       const filteredProviders = limitedProviders.filter(
-        (provider: any) => !providersToRemove.includes(provider.provider_id),
+        (provider: ProviderRaw) => !providersToRemove.includes(provider.provider_id),
       );
 
       const allMoviesProviders = await Promise.all(
-        filteredProviders.map((provider: any) =>
+        filteredProviders.map((provider: ProviderRaw) =>
           this.getTopMoviesProvider(provider.provider_id).then(movies => ({
             provider: {
               id: provider.provider_id,
@@ -76,7 +82,7 @@ export class MoviesService {
     }
   }
 
-  async getTopMoviesByGenres(genreId: number) {
+  async getTopMoviesByGenres(genreId: number): Promise<Movie[]> {
     try {
       const genreUrlPage1 = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=1`;
       const genreUrlPage2 = `${this.baseUrl}/discover/movie?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=2`;
@@ -96,7 +102,7 @@ export class MoviesService {
     }
   }
 
-  async getTopRatedMovies() {
+  async getTopRatedMovies(): Promise<Movie[]> {
     try {
       const currentDate = new Date();
       const lastYear = currentDate.getFullYear();
