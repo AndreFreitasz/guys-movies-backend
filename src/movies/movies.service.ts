@@ -13,6 +13,14 @@ export class MoviesService {
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
+  private formatMovie(movie: any): any {
+    return {
+      ...movie,
+      poster_url: `${this.imageBaseUrl}${movie.poster_path}`,
+      vote_average: movie.vote_average !== undefined ? parseFloat(movie.vote_average.toFixed(1)) : null,
+    };
+  }
+
   private async fetchFromApiMovies(url: string): Promise<Movie[]> {
     const response = await axios.get<ApiResponse<MovieRaw>>(url);
     const dataMovies = response.data;
@@ -115,6 +123,32 @@ export class MoviesService {
     } catch (error) {
       throw new HttpException(
         `Failed to fetch top rated movies: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async searchMovies(query: string): Promise<Movie[]> {
+    try {
+      const url = `${this.baseUrl}/search/movie?api_key=${this.apiKey}&language=pt-BR&query=${encodeURIComponent(query)}`;
+      console.log(`Fetching from URL: ${url}`);
+      const response = await axios.get<ApiResponse<MovieRaw>>(url);
+      const dataMovies = response.data;
+
+      const searchMovies: Movie[] = dataMovies.results
+        .filter((item: MovieRaw) => item.title)
+        .map((item: MovieRaw) => this.formatMovie(item))
+        .sort((movieA: Movie, movieB: Movie) => {
+          if (movieA.title === movieB.title) {
+            return movieB.popularity - movieA.popularity;
+          }
+          return 0;
+        });
+
+      return searchMovies;
+    } catch (error) {
+      throw new HttpException(
+        `Failed to search movies: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

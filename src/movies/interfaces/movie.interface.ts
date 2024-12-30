@@ -5,6 +5,7 @@ export interface MovieRaw {
   vote_average: number;
   vote_count: number;
   release_date: string;
+  popularity: number;
   overview: string;
   original_language: string;
   genre_ids: number[];
