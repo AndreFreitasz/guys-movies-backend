@@ -12,18 +12,21 @@ async function bootstrap() {
     console.log('Production mode enabled');
     app.use(helmet());
     app.enableCors({
-      origin: ['http://localhost:3000', 'http://localhost:3001', 'https://guys-movies-frontend.vercel.app'],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
+      origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://guys-movies-frontend.vercel.app',
+      ],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     });
   } else {
     app.enableCors({
       origin: '*',
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE'
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     });
   }
 
-
-  app.listen(process.env.PORT || 3001, function () {
+  app.listen(process.env.PORT || 3005, function () {
     console.log('Nest server listening');
   });
 }
