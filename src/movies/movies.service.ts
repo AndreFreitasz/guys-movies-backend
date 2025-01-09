@@ -3,7 +3,12 @@ import * as dotenv from 'dotenv';
 import axios from 'axios';
 import { Movie, MovieRaw } from './interfaces/movie.interface';
 import { ApiResponse } from './interfaces/api-response.interface';
-import { Provider, ProviderRaw, ProviderResponse } from './interfaces/provider.interface';
+import { format } from 'date-fns';
+import {
+  Provider,
+  ProviderRaw,
+  ProviderResponse,
+} from './interfaces/provider.interface';
 
 dotenv.config();
 
@@ -13,22 +18,26 @@ export class MoviesService {
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
-  private formatMovie(movie: any): any {
+  private formatMovie(movie: MovieRaw): Movie {
     return {
       ...movie,
       poster_url: `${this.imageBaseUrl}${movie.poster_path}`,
-      vote_average: movie.vote_average !== undefined ? parseFloat(movie.vote_average.toFixed(1)) : null,
+      vote_average:
+        movie.vote_average !== undefined
+          ? parseFloat(movie.vote_average.toFixed(1))
+          : null,
+      release_date: movie.release_date
+        ? format(new Date(movie.release_date), 'dd/MM/yyyy')
+        : null,
     };
   }
 
   private async fetchFromApiMovies(url: string): Promise<Movie[]> {
     const response = await axios.get<ApiResponse<MovieRaw>>(url);
     const dataMovies = response.data;
-
-    const movies: Movie[] = dataMovies.results.map((item: MovieRaw) => ({
-      ...item,
-      poster_url: `${this.imageBaseUrl}${item.poster_path}`,
-    }));
+    const movies: Movie[] = dataMovies.results.map((item: MovieRaw) =>
+      this.formatMovie(item),
+    );
 
     return movies;
   }
@@ -56,7 +65,9 @@ export class MoviesService {
     return topMoviesProviders;
   }
 
-  async getAllTopMoviesByProviders(): Promise<{ provider: Provider; movies: Movie[] }[]> {
+  async getAllTopMoviesByProviders(): Promise<
+    { provider: Provider; movies: Movie[] }[]
+  > {
     try {
       const providersUrl = `${this.baseUrl}/watch/providers/movie?api_key=${this.apiKey}&language=pt-BR&watch_region=BR`;
       const response = await axios.get<ProviderResponse>(providersUrl);
@@ -65,7 +76,8 @@ export class MoviesService {
       const providersToRemove = [167, 47, 350];
 
       const filteredProviders = limitedProviders.filter(
-        (provider: ProviderRaw) => !providersToRemove.includes(provider.provider_id),
+        (provider: ProviderRaw) =>
+          !providersToRemove.includes(provider.provider_id),
       );
 
       const allMoviesProviders = await Promise.all(
