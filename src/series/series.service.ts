@@ -27,6 +27,20 @@ export class SeriesService {
     };
   }
 
+  private removedSeriesAsian(series: Series[]): Series[] {
+    const filters = {
+      japaneseSeries: 'ja',
+      koreanSeries: 'ko',
+      thaiSeries: 'th',
+    }
+    const excludedSeries = {};
+    for (const [key, value] of Object.entries(filters)) {
+      excludedSeries[key] = series.filter(serie => serie.original_language === value);
+    }
+  
+    return series.filter(serie => !Object.values(filters).includes(serie.original_language));
+  }
+
   private async fetchFromApiSeries(url: string): Promise<Series[]> {
     const response = await axios.get<ApiResponse<SeriesRaw>>(url);
     const dataSeries = response.data;
@@ -99,16 +113,16 @@ export class SeriesService {
 
   async getTopSeriesByGenres(genreId: number): Promise<Series[]> {
     try {
-      const genreUrlPage1 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=1`;
-      const genreUrlPage2 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&page=2`;
+      const genreUrlPage1 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&without_genres=16&sort_by=vote_average.desc&vote_count.gte=300&page=1`;
+      const genreUrlPage2 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&without_genres=16&sort_by=vote_average.desc&vote_count.gte=300&page=2`;
 
       const [seriesPage1, seriesPage2] = await Promise.all([
         this.fetchFromApiSeries(genreUrlPage1),
         this.fetchFromApiSeries(genreUrlPage2),
       ]);
-
       const seriesPopularByGenre = [...seriesPage1, ...seriesPage2];
-      return seriesPopularByGenre;
+      const filteredSeries = this.removedSeriesAsian(seriesPopularByGenre);
+      return filteredSeries;
     } catch (error) {
       throw new HttpException(
         `Failed to fetch top series by genre: ${error.message}`,
