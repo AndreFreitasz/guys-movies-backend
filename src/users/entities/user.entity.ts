@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
 
 @Entity()
 export class User {
@@ -8,8 +8,11 @@ export class User {
   @Column({type: 'varchar', length: 120})
   name: string;
 
-  @Column({type: 'varchar', length: 80})
+  @Column({ type: 'varchar', length: 80, nullable: false })
   email: string;
+
+  @Column({ type: 'varchar', length: 40, nullable: false })
+  username: string;
 
   @Column()
   password: string;
@@ -17,6 +20,6 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
-  @Column()
-  createdAt?: Date;
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt: Date;
 }
