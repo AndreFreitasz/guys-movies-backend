@@ -6,6 +6,8 @@ import * as dotenv from 'dotenv';
 import { SeriesModule } from 'src/series/series.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { User } from 'src/users/entities/user.entity';
+import { UsersModule } from 'src/users/users.module';
 
 dotenv.config();
 
@@ -31,6 +33,7 @@ dotenv.config();
     }),
     MoviesModule,
     SeriesModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
