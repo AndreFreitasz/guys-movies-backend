@@ -15,7 +15,7 @@ export class AuthService {
     const foundUser = await this.usersService.findByUsername(username);
 
     if (!foundUser || !bcryptCompareSync(password, foundUser.password)) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('Usuário ou senha inválidos');
     }
 
     const payload = { username: foundUser.username, sub: foundUser.id };
