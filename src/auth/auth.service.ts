@@ -11,14 +11,14 @@ export class AuthService {
     private readonly jwtService: JwtService
   ) {}
 
-  async signIn(username: string, password: string): Promise<AuthResponseDto> {
-    const foundUser = await this.usersService.findByUsername(username);
+  async signIn(email: string, password: string): Promise<AuthResponseDto> {
+    const foundEmail = await this.usersService.findByEmail(email);
 
-    if (!foundUser || !bcryptCompareSync(password, foundUser.password)) {
-      throw new UnauthorizedException('Usuário ou senha inválidos');
+    if (!foundEmail || !bcryptCompareSync(password, foundEmail.password)) {
+      throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
-    const payload = { username: foundUser.username, sub: foundUser.id };
+    const payload = { email: foundEmail.email, sub: foundEmail.id };
     const accessToken = this.jwtService.sign(payload);
 
     return { accessToken };

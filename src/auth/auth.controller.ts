@@ -10,6 +10,6 @@ export class AuthController {
 
   @Post('login')
   async signIn(@Body() loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.signIn(loginDto.username, loginDto.password);
+    return this.authService.signIn(loginDto.email, loginDto.password);
   }
 }
