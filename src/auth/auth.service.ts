@@ -12,15 +12,25 @@ export class AuthService {
   ) {}
 
   async signIn(email: string, password: string): Promise<AuthResponseDto> {
-    const foundEmail = await this.usersService.findByEmail(email);
+    const foundUser = await this.usersService.findByEmail(email);
 
-    if (!foundEmail || !bcryptCompareSync(password, foundEmail.password)) {
+    if (!foundUser || !bcryptCompareSync(password, foundUser.password)) {
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
 
-    const payload = { email: foundEmail.email, sub: foundEmail.id };
+    const payload = { email: foundUser.email, sub: foundUser.id };
     const accessToken = this.jwtService.sign(payload);
 
     return { accessToken };
+  }
+
+  async getProfile(token: string) {
+    const payload = this.jwtService.verify(token);
+    console.log("payload =>", payload);
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) {
+      throw new UnauthorizedException('Usuário não encontrado');
+    }
+    return user;
   }
 }
