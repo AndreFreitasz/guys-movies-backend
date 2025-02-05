@@ -25,6 +25,9 @@ export class AuthController {
 
   @Get('profile')
   async getProfile(@Req() req: Request, @Res() res: Response) {
+    console.log('Headers:', req.headers);
+    console.log('Cookies:', req.cookies);
+    
     const token = req.cookies?.jwt;
     if (!token) {
       throw new UnauthorizedException('Token não fornecido');
