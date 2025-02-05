@@ -15,8 +15,9 @@ export class AuthController {
       loginDto.password,
     );
     res.cookie('jwt', accessToken, {
-      httpOnly: true, 
-      secure: false,
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
       maxAge: 7200000
     });
 
