@@ -9,6 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { User } from 'src/users/entities/user.entity';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
+import { MovieModule } from 'src/movie/movie.module';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ dotenv.config();
       inject: [ConfigService],
     }),
     MoviesModule,
+    MovieModule,
     SeriesModule,
     UsersModule,
     AuthModule,
