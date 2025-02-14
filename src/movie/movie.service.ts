@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { CastDto, MovieDto, ProviderDto, ProvidersDto } from './dto/movie.dto';
 
@@ -32,7 +32,7 @@ export class MovieService {
 
       return dataMovie;
     } catch (error) {
-      console.log(error);
+      throw error;
     }
   }
 
@@ -42,7 +42,7 @@ export class MovieService {
       const response = await axios.get(url);
       return response.data;
     } catch (error) {
-      console.log("Não foi possível encontrar o filme: ", error); 
+      throw new HttpException(`Erro ao buscar filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
     }
   }
 
@@ -59,7 +59,7 @@ export class MovieService {
 
       return actors;
     } catch (error) {
-      console.log("Não foi possível encontrar o elenco do filme: ", error); 
+      throw new HttpException(`Não foi possível encontrar o elenco do filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
     }
   }
 
@@ -75,7 +75,7 @@ export class MovieService {
         profile_path: `${this.sizeImageCast}${director.profile_path}`,
       };
     } catch (error) {
-      console.log("Não foi possível encontrar o diretor do filme: ", error);
+      throw new HttpException(`Não foi possível encontrar o diretor do filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -98,7 +98,7 @@ export class MovieService {
 
       return result;
     } catch (error) {
-      console.log("Não foi possível encontrar os streamings: ", error); 
+      throw new HttpException(`Não foi possível encontrar os streamings: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
     }
   }
 }
