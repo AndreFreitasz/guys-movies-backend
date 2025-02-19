@@ -25,7 +25,7 @@ export class MovieService {
         release_date: movie.release_date,
         genres: movie.genres.map((genre: { name: string }) => genre.name),
         adult: movie.adult,
-        providers: providers,
+        providers: providers ? providers : {},
         cast: cast,
         director: director
       };
