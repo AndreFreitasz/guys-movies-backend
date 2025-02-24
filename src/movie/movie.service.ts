@@ -92,6 +92,7 @@ export class MovieService {
           result[type] = providersData[type].map((provider: any) => ({
             provider_name: provider.provider_name,
             logo_path: `${this.sizeImageProvider}${provider.logo_path}`,
+            id_provider: provider.provider_id,  
           }));
         }
       });

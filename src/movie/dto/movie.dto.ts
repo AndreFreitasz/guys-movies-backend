@@ -24,6 +24,7 @@ export class CastDto {
 export class ProviderDto {
   provider_name: string;
   logo_path: string;
+  provider_id: number;
 }
 
 export class ProvidersDto {
