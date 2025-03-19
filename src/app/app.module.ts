@@ -10,6 +10,8 @@ import { User } from 'src/users/entities/user.entity';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { MovieModule } from 'src/movie/movie.module';
+import { CreatedMovieModule } from 'src/movie/created-movie/created-movie.module';
+import { WatchedMovieModule } from 'src/movie/watched-movie/watched-movie.module';
 
 dotenv.config();
 
@@ -38,6 +40,8 @@ dotenv.config();
     SeriesModule,
     UsersModule,
     AuthModule,
+    CreatedMovieModule,
+    WatchedMovieModule
   ],
   controllers: [AppController],
   providers: [AppService],
