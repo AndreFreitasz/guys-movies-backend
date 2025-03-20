@@ -22,8 +22,13 @@ export class SeriesService {
     return {
       ...series,
       poster_url: `${this.imageBaseUrl}${series.poster_path}`,
-      vote_average: series.vote_average !== undefined ? parseFloat(series.vote_average.toFixed(1)) : null,
-      first_air_date: series.first_air_date ? format(new Date(series.first_air_date), 'dd/MM/yyyy') : null,
+      vote_average:
+        series.vote_average !== undefined
+          ? parseFloat(series.vote_average.toFixed(1))
+          : null,
+      first_air_date: series.first_air_date
+        ? format(new Date(series.first_air_date), 'dd/MM/yyyy')
+        : null,
     };
   }
 
@@ -32,13 +37,17 @@ export class SeriesService {
       japaneseSeries: 'ja',
       koreanSeries: 'ko',
       thaiSeries: 'th',
-    }
+    };
     const excludedSeries = {};
     for (const [key, value] of Object.entries(filters)) {
-      excludedSeries[key] = series.filter(serie => serie.original_language === value);
+      excludedSeries[key] = series.filter(
+        serie => serie.original_language === value,
+      );
     }
-  
-    return series.filter(serie => !Object.values(filters).includes(serie.original_language));
+
+    return series.filter(
+      serie => !Object.values(filters).includes(serie.original_language),
+    );
   }
 
   private async fetchFromApiSeries(url: string): Promise<Series[]> {

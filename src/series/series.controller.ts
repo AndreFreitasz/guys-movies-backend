@@ -13,7 +13,9 @@ export class SeriesController {
   }
 
   @Get('popularByProviders')
-  getAllTopSeriesByProviders(): Promise<{ provider: Provider; series: Series[] }[]> {
+  getAllTopSeriesByProviders(): Promise<
+    { provider: Provider; series: Series[] }[]
+  > {
     return this.seriesService.getAllTopSeriesByProviders();
   }
 

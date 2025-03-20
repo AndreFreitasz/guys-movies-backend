@@ -1,9 +1,13 @@
-import { ConflictException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Movies } from '../entities/movies.entity';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
-
 
 @Injectable()
 export class CreatedMovieService {
@@ -17,12 +21,18 @@ export class CreatedMovieService {
     return count;
   }
 
-  async createMovie(createMovieDto: CreatedMovieDto): Promise<{ message: string }> {
+  async findMovieByIdTmdb(idTmdb: string): Promise<Movies> {
+    return this.movieRepository.findOne({ where: { idTmdb } });
+  }
+
+  async createMovie(
+    createMovieDto: CreatedMovieDto,
+  ): Promise<{ message: string }> {
     const { idTmdb } = createMovieDto;
 
     const existingMovieCount = await this.checkIfMovieExists(idTmdb);
     if (existingMovieCount > 0) {
-      throw new HttpException('O filme já está cadastrado', HttpStatus.BAD_REQUEST);
+      return { message: 'O filme já está cadastrado' };
     }
 
     const movie = this.movieRepository.create(createMovieDto);

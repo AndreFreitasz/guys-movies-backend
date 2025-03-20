@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthResponseDto } from './dto/auth.dto';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -18,7 +26,7 @@ export class AuthController {
       httpOnly: true,
       secure: true,
       sameSite: 'none',
-      maxAge: 7200000
+      maxAge: 7200000,
     });
 
     return res.json({ message: 'Login bem-sucedido' });
@@ -28,14 +36,18 @@ export class AuthController {
   async getProfile(@Req() req: Request, @Res() res: Response) {
     console.log('Headers:', req.headers);
     console.log('Cookies:', req.cookies);
-    
+
     const token = req.cookies?.jwt;
     if (!token) {
       throw new UnauthorizedException('Token não fornecido');
     }
 
     const user = await this.authService.getProfile(token);
-    return res.json({ username: user.username, email: user.email, name: user.name });
+    return res.json({
+      username: user.username,
+      email: user.email,
+      name: user.name,
+    });
   }
 
   @Post('logout')

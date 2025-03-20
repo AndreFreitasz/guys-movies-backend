@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  OneToMany,
+} from 'typeorm';
+import { WatchedMovie } from './watched-movie.entity';
 
 @Entity()
 export class Movies {
@@ -25,4 +32,7 @@ export class Movies {
 
   @Column({ type: 'float', nullable: true })
   voteAverage: number;
+
+  @OneToMany(() => WatchedMovie, watchedMovie => watchedMovie.idMovie)
+  watchedMovies: WatchedMovie[];
 }

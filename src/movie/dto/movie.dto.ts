@@ -1,4 +1,4 @@
-import { Dir } from "fs";
+import { Dir } from 'fs';
 
 export class MovieDto {
   id: number;

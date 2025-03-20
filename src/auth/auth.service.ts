@@ -1,14 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
-import {compareSync as bcryptCompareSync} from 'bcrypt';
+import { compareSync as bcryptCompareSync } from 'bcrypt';
 import { AuthResponseDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService:UsersService,
-    private readonly jwtService: JwtService
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
   ) {}
 
   async signIn(email: string, password: string): Promise<AuthResponseDto> {
@@ -26,7 +26,7 @@ export class AuthService {
 
   async getProfile(token: string) {
     const payload = this.jwtService.verify(token);
-    console.log("payload =>", payload);
+    console.log('payload =>', payload);
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');

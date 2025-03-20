@@ -22,7 +22,7 @@ export class MoviesController {
 
   @Get('topRated')
   getTopRatedMovies() {
-   return this.moviesService.getTopRatedMovies();
+    return this.moviesService.getTopRatedMovies();
   }
 
   @Get('search')

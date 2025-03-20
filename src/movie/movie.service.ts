@@ -27,7 +27,7 @@ export class MovieService {
         adult: movie.adult,
         providers: providers ? providers : {},
         cast: cast,
-        director: director
+        director: director,
       };
 
       return dataMovie;
@@ -42,7 +42,10 @@ export class MovieService {
       const response = await axios.get(url);
       return response.data;
     } catch (error) {
-      throw new HttpException(`Erro ao buscar filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
+      throw new HttpException(
+        `Erro ao buscar filme: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -59,7 +62,10 @@ export class MovieService {
 
       return actors;
     } catch (error) {
-      throw new HttpException(`Não foi possível encontrar o elenco do filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
+      throw new HttpException(
+        `Não foi possível encontrar o elenco do filme: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -75,7 +81,10 @@ export class MovieService {
         profile_path: `${this.sizeImageCast}${director.profile_path}`,
       };
     } catch (error) {
-      throw new HttpException(`Não foi possível encontrar o diretor do filme: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        `Não foi possível encontrar o diretor do filme: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -85,21 +94,24 @@ export class MovieService {
       const response = await axios.get(url);
       const providersData = response.data.results.BR;
       const providerTypes = ['flatrate', 'buy', 'rent'];
-      const result: ProvidersDto = {}
-      
-      providerTypes.forEach((type) => {
+      const result: ProvidersDto = {};
+
+      providerTypes.forEach(type => {
         if (providersData[type]) {
           result[type] = providersData[type].map((provider: any) => ({
             provider_name: provider.provider_name,
             logo_path: `${this.sizeImageProvider}${provider.logo_path}`,
-            id_provider: provider.provider_id,  
+            id_provider: provider.provider_id,
           }));
         }
       });
 
       return result;
     } catch (error) {
-      throw new HttpException(`Não foi possível encontrar os streamings: ${error.message}`, HttpStatus.INTERNAL_SERVER_ERROR); 
+      throw new HttpException(
+        `Não foi possível encontrar os streamings: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }
