@@ -26,7 +26,6 @@ export class AuthService {
 
   async getProfile(token: string) {
     const payload = this.jwtService.verify(token);
-    console.log('payload =>', payload);
     const user = await this.usersService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('Usuário não encontrado');

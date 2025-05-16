@@ -34,8 +34,6 @@ export class AuthController {
 
   @Get('profile')
   async getProfile(@Req() req: Request, @Res() res: Response) {
-    console.log('Headers:', req.headers);
-    console.log('Cookies:', req.cookies);
 
     const token = req.cookies?.jwt;
     if (!token) {
@@ -43,7 +41,9 @@ export class AuthController {
     }
 
     const user = await this.authService.getProfile(token);
+    console.log(user);
     return res.json({
+      id: user.id,
       username: user.username,
       email: user.email,
       name: user.name,
