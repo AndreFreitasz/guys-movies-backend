@@ -15,11 +15,7 @@ export class WatchedMovieService {
     private readonly createdMovieService: CreatedMovieService,
   ) {}
 
-  async markAsWatched(
-    watchedAt: Date,
-    userId: number,
-    createMovieDto: CreatedMovieDto,
-  ): Promise<string> {
+  async markAsWatched(watchedAt: Date, userId: number, createMovieDto: CreatedMovieDto): Promise<string> {
     await this.createdMovieService.createMovie(createMovieDto);
     const movie = await this.createdMovieService.findMovieByIdTmdb(
       createMovieDto.idTmdb,
@@ -53,11 +49,11 @@ export class WatchedMovieService {
     }
   }
 
-  async destroyWatchedMovie(userId: number, idMovie: number): Promise<string> {
+  async destroyWatchedMovie(userId: number, movieId: number): Promise<string> {
     try {
       const result = await this.watchedMovieRepository.delete({
         idUser: { id: userId },
-        idMovie: { id: idMovie },
+        idMovie: { id: movieId },
       });
       if (result.affected === 0) {
         throw new HttpException(
@@ -69,6 +65,23 @@ export class WatchedMovieService {
     } catch (error) {
       throw new HttpException(
         'Erro ao desmarcar o filme',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async isWatchedMovie(userId: number, movieId: number): Promise<boolean> {
+    try {
+      const watchedMovie = await this.watchedMovieRepository.findOne({
+        where: {
+          idUser: { id: userId },
+          idMovie: { id: movieId },
+        },
+      });
+      return watchedMovie ? true : false;
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao verificar se o filme foi assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
