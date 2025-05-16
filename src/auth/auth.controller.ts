@@ -41,7 +41,6 @@ export class AuthController {
     }
 
     const user = await this.authService.getProfile(token);
-    console.log(user);
     return res.json({
       id: user.id,
       username: user.username,

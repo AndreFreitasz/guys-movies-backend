@@ -32,13 +32,12 @@ export class WatchedMovieService {
           idMovie: { id: movie.id },
         },
       });
+
       if (existingWatchedMovie) {
-        const destroyWatchedMovie = await this.destroyWatchedMovie(
-          userId,
-          movie.id,
-        );
-        return destroyWatchedMovie;
+        await this.destroyWatchedMovie(userId, movie.id);
+        return 'Filme desmarcado com sucesso';
       }
+
       const watchedMovie = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
         idMovie: { id: movie.id } as Movies,
