@@ -16,12 +16,12 @@ export class CreatedMovieService {
     private readonly movieRepository: Repository<Movies>,
   ) {}
 
-  async checkIfMovieExists(idTmdb: string): Promise<number> {
+  async checkIfMovieExists(idTmdb: number): Promise<number> {
     const count = await this.movieRepository.count({ where: { idTmdb } });
     return count;
   }
 
-  async findMovieByIdTmdb(idTmdb: string): Promise<Movies> {
+  async findMovieByIdTmdb(idTmdb: number): Promise<Movies> {
     return this.movieRepository.findOne({ where: { idTmdb } });
   }
 

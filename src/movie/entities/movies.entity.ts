@@ -21,8 +21,8 @@ export class Movies {
   @Column({ type: 'date', nullable: false })
   releaseDate: string;
 
-  @Column({ type: 'varchar', length: 20 })
-  idTmdb: string;
+  @Column({ type: 'int', nullable: true })
+  idTmdb: number;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   posterPath: string;

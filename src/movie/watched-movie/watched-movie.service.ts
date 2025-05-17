@@ -38,6 +38,7 @@ export class WatchedMovieService {
         idUser: { id: userId } as User,
         idMovie: { id: movie.id } as Movies,
         watchedAt: watchedAt,
+        idTmdb: createMovieDto.idTmdb,
       });
       await this.watchedMovieRepository.save(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
@@ -70,12 +71,12 @@ export class WatchedMovieService {
     }
   }
 
-  async isWatchedMovie(userId: number, movieId: number): Promise<boolean> {
+  async isWatchedMovie(idUser: number, idTmdb: number): Promise<boolean> {
     try {
       const watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
-          idUser: { id: userId },
-          idMovie: { id: movieId },
+          idUser: { id: idUser },
+          idTmdb: idTmdb
         },
       });
       return watchedMovie ? true : false;

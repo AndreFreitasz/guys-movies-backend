@@ -19,6 +19,9 @@ export class WatchedMovie {
   @ManyToOne(() => Movies, movie => movie.watchedMovies)
   idMovie: Movies;
 
+  @Column({ type: 'int', nullable: true })
+  idTmdb: number;
+
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   watchedAt: Date;
 

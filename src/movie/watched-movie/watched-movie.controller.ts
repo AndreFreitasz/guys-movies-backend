@@ -22,7 +22,7 @@ export class WatchedMovieController {
 
   @Get('isWatched')
   async isWatched(@Query() query: IsWatchedMovieDto, @Res() res: Response) {
-    const watched = await this.watchedMovieService.isWatchedMovie(query.userId, query.movieId);
+    const watched = await this.watchedMovieService.isWatchedMovie(query.userId, query.idTmdb);
     return res.status(HttpStatus.OK).json({ watched });
   }
 }
