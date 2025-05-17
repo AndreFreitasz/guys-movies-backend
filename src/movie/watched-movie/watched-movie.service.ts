@@ -41,9 +41,9 @@ export class WatchedMovieService {
       });
       await this.watchedMovieRepository.save(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
-    } catch {
+    } catch (error){
       throw new HttpException(
-        'Erro ao marcar o filme como assistido',
+        `Erro ao marcar o filme como assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -64,7 +64,7 @@ export class WatchedMovieService {
       return 'Filme desmarcado com sucesso';
     } catch (error) {
       throw new HttpException(
-        'Erro ao desmarcar o filme',
+        `Erro ao desmarcar o filme: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
