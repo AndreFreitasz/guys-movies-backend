@@ -25,18 +25,22 @@ export class CreatedMovieService {
     return this.movieRepository.findOne({ where: { idTmdb } });
   }
 
-  async createMovie(
-    createMovieDto: CreatedMovieDto,
-  ): Promise<{ message: string }> {
+  async createMovie(createMovieDto: CreatedMovieDto): Promise<{ message: string }> {
     const { idTmdb } = createMovieDto;
+    try {
+      const existingMovieCount = await this.checkIfMovieExists(idTmdb);
+      if (existingMovieCount > 0) {
+        return { message: 'O filme já está cadastrado' };
+      }
 
-    const existingMovieCount = await this.checkIfMovieExists(idTmdb);
-    if (existingMovieCount > 0) {
-      return { message: 'O filme já está cadastrado' };
+      const movie = this.movieRepository.create(createMovieDto);
+      await this.movieRepository.save(movie);
+      return { message: 'Filme cadastrado com sucesso' };
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao cadastrar o filme: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-
-    const movie = this.movieRepository.create(createMovieDto);
-    await this.movieRepository.save(movie);
-    return { message: 'Filme cadastrado com sucesso' };
   }
 }

@@ -15,7 +15,7 @@ export class Movies {
   @Column({ type: 'varchar', length: 100 })
   title: string;
 
-  @Column({ type: 'varchar', length: 400 })
+  @Column({ type: 'text' })
   overview: string;
 
   @Column({ type: 'date', nullable: false })
