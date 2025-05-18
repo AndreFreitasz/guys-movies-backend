@@ -2,11 +2,10 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
-  CreateDateColumn,
   OneToMany,
 } from 'typeorm';
 import { WatchedMovie } from './watched-movie.entity';
-import { WaitingMovie } from './waiting-movie.entity';
+import { WaitingMovies } from './waiting-movie.entity';
 
 @Entity()
 export class Movies {
@@ -37,6 +36,6 @@ export class Movies {
   @OneToMany(() => WatchedMovie, watchedMovie => watchedMovie.idMovie)
   watchedMovies: WatchedMovie[];
 
-  @OneToMany(() => WaitingMovie, watchedMovie => watchedMovie.movie)
-  waitingMovie: WaitingMovie[];
+  @OneToMany(() => WaitingMovies, waitingMovie => waitingMovie.movie)
+  waitingMovie: WaitingMovies[];
 }

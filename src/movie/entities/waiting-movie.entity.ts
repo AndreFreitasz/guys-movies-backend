@@ -8,7 +8,7 @@ import { User } from '../../users/entities/user.entity';
 import { Movies } from './movies.entity';
 
 @Entity()
-export class WaitingMovie {
+export class WaitingMovies {
   @PrimaryGeneratedColumn()
   id: number;
 

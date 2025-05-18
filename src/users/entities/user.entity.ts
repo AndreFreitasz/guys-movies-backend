@@ -1,4 +1,4 @@
-import { WaitingMovie } from 'src/movie/entities/waiting-movie.entity';
+import { WaitingMovies } from 'src/movie/entities/waiting-movie.entity';
 import { WatchedMovie } from 'src/movie/entities/watched-movie.entity';
 import {
   Entity,
@@ -34,6 +34,6 @@ export class User {
   @OneToMany(() => WatchedMovie, watchedMovie => watchedMovie.idUser)
   watchedMovies: WatchedMovie[];
 
-  @OneToMany(() => WaitingMovie, waitingMovie => waitingMovie.user)
-  waitingMovie: WaitingMovie[];
+  @OneToMany(() => WaitingMovies, waitingMovie => waitingMovie.user)
+  waitingMovie: WaitingMovies[];
 }

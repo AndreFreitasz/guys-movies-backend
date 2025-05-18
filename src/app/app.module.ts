@@ -12,6 +12,7 @@ import { AuthModule } from 'src/auth/auth.module';
 import { MovieModule } from 'src/movie/movie.module';
 import { CreatedMovieModule } from 'src/movie/created-movie/created-movie.module';
 import { WatchedMovieModule } from 'src/movie/watched-movie/watched-movie.module';
+import { WaitingMovieModule } from 'src/movie/waiting-movie/waiting-movie.module';
 
 dotenv.config();
 
@@ -41,7 +42,8 @@ dotenv.config();
     UsersModule,
     AuthModule,
     CreatedMovieModule,
-    WatchedMovieModule,
+    WatchedMovieModule, 
+    WaitingMovieModule,
   ],
   controllers: [AppController],
   providers: [AppService],
