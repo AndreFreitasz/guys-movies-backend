@@ -21,9 +21,9 @@ export class WaitingMovieController {
   }
 
   @Get('isWaiting')
-  async isWatched(@Query() query: IsWaitingMovieDto, @Res() res: Response) {
-    const watched = await this.waitingMovieService.isWaitingMovie(query.userId, query.idTmdb);
-    return res.status(HttpStatus.OK).json({ watched });
+  async isWaiting(@Query() query: IsWaitingMovieDto, @Res() res: Response) {
+    const waiting = await this.waitingMovieService.isWaitingMovie(query.userId, query.idTmdb);
+    return res.status(HttpStatus.OK).json({ waiting });
   }
   
 }
