@@ -37,10 +37,10 @@ export class WatchedMovieService {
       const watchedMovie = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
         idMovie: { id: movie.id } as Movies,
-        watchedAt: watchedAt,
+        watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         idTmdb: createMovieDto.idTmdb,
       });
-      await this.watchedMovieRepository.save(watchedMovie);
+      await this.watchedMovieRepository.insert(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
     } catch (error){
       throw new HttpException(
