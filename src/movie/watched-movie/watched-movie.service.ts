@@ -1,7 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedMovie } from '../entities/watched-movie.entity';
-import { Repository } from 'typeorm';
+import { Equal, Repository } from 'typeorm';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
 import { CreatedMovieService } from '../created-movie/created-movie.service';
 import { User } from 'src/users/entities/user.entity';
@@ -112,6 +112,24 @@ export class WatchedMovieService {
     } catch (error) {
       throw new HttpException(
         `Erro ao atualizar a avaliação: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getMovieRating(userId: number, idTmdb: number): Promise<number | null> {
+    try {
+      const ratingMovie = await this.watchedMovieRepository.findOne({
+        where: {
+          idUser: Equal(userId),
+          idTmdb: idTmdb,
+        },
+        select: ['rating'],
+      });
+      return ratingMovie ? ratingMovie.rating : null;
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao buscar avaliação do filme: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

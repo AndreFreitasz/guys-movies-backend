@@ -3,6 +3,7 @@ import { WatchedMovieService } from './watched-movie.service';
 import { Response } from 'express';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
 import { IsWatchedMovieDto } from '../dto/is-watched.dto';
+import { GetRateDto } from '../dto/get-rate.dto';
 
 @Controller('watchedMovie')
 export class WatchedMovieController {
@@ -33,5 +34,11 @@ export class WatchedMovieController {
   ) {
     const message = await this.watchedMovieService.rateMovie(userId, idTmdb, rating);
     return res.status(HttpStatus.OK).json({ message });
+  }
+
+  @Get('getRate')
+  async getRate(@Query() query: GetRateDto, @Res() res: Response) {
+    const rate = await this.watchedMovieService.getMovieRating(query.userId, query.idTmdb);
+    return res.status(HttpStatus.OK).json({ rate });
   }
 }
