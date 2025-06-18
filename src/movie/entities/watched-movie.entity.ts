@@ -22,7 +22,10 @@ export class WatchedMovie {
   @Column({ type: 'int' })
   idTmdb: number;
 
-  @Column({ type: 'timestamp', nullable: true})
+  @Column({ type: 'float', nullable: true })
+  rating: number;
+
+  @Column({ type: 'date', nullable: true})
   watchedAt: Date;
 
   @CreateDateColumn()

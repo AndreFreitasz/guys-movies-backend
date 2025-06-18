@@ -25,4 +25,13 @@ export class WatchedMovieController {
     const watched = await this.watchedMovieService.isWatchedMovie(query.userId, query.idTmdb);
     return res.status(HttpStatus.OK).json({ watched });
   }
+
+  @Post('rate')
+  async rateMovie(
+    @Body() { userId, idTmdb, rating }: { userId: number; idTmdb: number; rating: number },
+    @Res() res: Response,
+  ) {
+    const message = await this.watchedMovieService.rateMovie(userId, idTmdb, rating);
+    return res.status(HttpStatus.OK).json({ message });
+  }
 }

@@ -87,4 +87,33 @@ export class WatchedMovieService {
       );
     }
   }
+
+  async rateMovie(userId: number, idTmdb: number, rating: number): Promise<string> {
+    try {
+      let watchedMovie = await this.watchedMovieRepository.findOne({
+        where: {
+          idUser: { id: userId },
+          idTmdb: idTmdb
+        },
+      });
+      if (watchedMovie) {
+        watchedMovie.rating = rating;
+        await this.watchedMovieRepository.save(watchedMovie);
+        return 'Avaliação atualizada com sucesso';
+      }
+      watchedMovie = this.watchedMovieRepository.create({
+        idUser: { id: userId } as User,
+        idTmdb: idTmdb,
+        rating: rating,
+        watchedAt: null,
+      });
+      await this.watchedMovieRepository.insert(watchedMovie);
+      return 'Filme marcado como assistido com sucesso';
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao atualizar a avaliação: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
