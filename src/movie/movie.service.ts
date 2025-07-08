@@ -11,9 +11,13 @@ export class MovieService {
   async getMovieData(idMovie: number) {
     try {
       const movie = await this.getMovieById(idMovie);
-      const cast = await this.getMovieCast(idMovie);
-      const director = await this.getMovieDirector(idMovie);
-      const providers = await this.getMovieProviders(idMovie);
+      if (!movie) throw new HttpException('Filme não encontrado', HttpStatus.NOT_FOUND);
+
+      const cast = await this.getMovieCast(idMovie).catch(() => []);
+      const director = await this.getMovieDirector(idMovie).catch(() => null);
+      const providers = await this.getMovieProviders(idMovie).catch(
+        () => ({}),
+      );
 
       const dataMovie: MovieDto = {
         id: movie.id,
@@ -25,14 +29,18 @@ export class MovieService {
         release_date: movie.release_date,
         genres: movie.genres.map((genre: { name: string }) => genre.name),
         adult: movie.adult,
-        providers: providers ? providers : {},
+        providers: providers,
         cast: cast,
         director: director,
       };
 
       return dataMovie;
     } catch (error) {
-      throw error;
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        `Erro ao buscar dados do filme: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -43,7 +51,7 @@ export class MovieService {
       return response.data;
     } catch (error) {
       throw new HttpException(
-        `Erro ao buscar filme: ${error.message}`,
+        `Erro ao buscar o id do filme: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -76,9 +84,13 @@ export class MovieService {
       const crew = response.data.crew;
       const director = crew.find((member: any) => member.job === 'Director');
 
+      if (!director) return null;
+
       return {
         name: director.name,
-        profile_path: `${this.sizeImageCast}${director.profile_path}`,
+        profile_path: director.profile_path
+          ? `${this.sizeImageCast}${director.profile_path}`
+          : null,
       };
     } catch (error) {
       throw new HttpException(
@@ -93,10 +105,13 @@ export class MovieService {
     try {
       const response = await axios.get(url);
       const providersData = response.data.results.BR;
+
+      if (!providersData) return {};
+
       const providerTypes = ['flatrate', 'buy', 'rent'];
       const result: ProvidersDto = {};
 
-      providerTypes.forEach(type => {
+      providerTypes.forEach((type) => {
         if (providersData[type]) {
           result[type] = providersData[type].map((provider: any) => ({
             provider_name: provider.provider_name,
