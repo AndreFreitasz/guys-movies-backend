@@ -13,6 +13,7 @@ import { MovieModule } from 'src/movie/movie.module';
 import { CreatedMovieModule } from 'src/movie/created-movie/created-movie.module';
 import { WatchedMovieModule } from 'src/movie/watched-movie/watched-movie.module';
 import { WaitingMovieModule } from 'src/movie/waiting-movie/waiting-movie.module';
+import { SerieModule } from 'src/serie/serie.module';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ dotenv.config();
     MoviesModule,
     MovieModule,
     SeriesModule,
+    SerieModule,
     UsersModule,
     AuthModule,
     CreatedMovieModule,
