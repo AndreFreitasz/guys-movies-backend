@@ -39,9 +39,9 @@ export class User {
   @OneToMany(() => WaitingMovies, waitingMovie => waitingMovie.user)
   waitingMovie: WaitingMovies[];
 
-  // @OneToMany(() => WatchedSerie, watchedSerie => watchedSerie.user)
-  // watchedSeries: WatchedSerie[];
+  @OneToMany(() => WatchedSerie, watchedSerie => watchedSerie.user)
+  watchedSeries: WatchedSerie[];
 
-  // @OneToMany(() => WaitingSeries, waitingSerie => waitingSerie.user)
-  // waitingSerie: WaitingSeries[];
+  @OneToMany(() => WaitingSeries, waitingSerie => waitingSerie.user)
+  waitingSerie: WaitingSeries[];
 }

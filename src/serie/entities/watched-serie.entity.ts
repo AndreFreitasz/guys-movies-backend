@@ -13,8 +13,8 @@ export class WatchedSerie {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // @ManyToOne(() => User, user => user.watchedSeries)
-  // user: User;
+  @ManyToOne(() => User, user => user.watchedSeries)
+  user: User;
 
   @ManyToOne(() => Series, serie => serie.watchedSeries)
   serie: Series;

@@ -15,8 +15,8 @@ export class WaitingSeries {
   @Column({ type: 'int', nullable: true })
   idTmdb: number;
 
-  // @ManyToOne(() => User, user => user.waitingSerie)
-  // user: User;
+  @ManyToOne(() => User, user => user.waitingSerie)
+  user: User;
 
   @ManyToOne(() => Series, serie => serie.waitingSerie)
   serie: Series;
