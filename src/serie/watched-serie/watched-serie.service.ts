@@ -1,8 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedSerie } from '../entities/watched-serie.entity';
-import { Equal, Repository } from 'typeorm';
-import { SerieDto } from '../dto/serie.dto';
+import { Repository } from 'typeorm';
+import { CreatedSerieDto } from '../dto/created-serie.dto';
 import { User } from 'src/users/entities/user.entity';
 import { Series } from '../entities/series.entity';
 import { CreatedSerieService } from '../created-serie/created-serie.service';
@@ -15,21 +15,23 @@ export class WatchedSerieService {
     private readonly createdSerieService: CreatedSerieService,
   ) {}
 
-  async markAsWatched(watchedAt: Date, userId: number, serieDto: SerieDto): Promise<string> {
-    const createdSerieDto = {
-      name: serieDto.name,
-      overview: serieDto.overview,
-      firstAirDate: serieDto.first_air_date,
-      idTmdb: serieDto.id,
-      posterPath: serieDto.poster_path,
-      numberOfSeasons: serieDto.number_of_seasons,
-      voteAverage: serieDto.vote_average,
-    };
+  async markAsWatched(
+    watchedAt: Date,
+    userId: number,
+    createdSerieDto: CreatedSerieDto,
+  ): Promise<string> {
     // Garante que a série está cadastrada na base
     await this.createdSerieService.createSerie(createdSerieDto);
     const serie = await this.createdSerieService.findSerieByIdTmdb(
       createdSerieDto.idTmdb,
     );
+
+    if (!serie) {
+      throw new HttpException(
+        'Série não encontrada para cadastro',
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
     try {
       const existingWatchedSerie = await this.watchedSerieRepository.findOne({
@@ -46,7 +48,7 @@ export class WatchedSerieService {
         user: { id: userId } as User,
         serie: { id: serie.id } as Series,
         watchedAt: watchedAt ? new Date(watchedAt) : undefined,
-        idTmdb: serie.idTmdb,
+        idTmdb: createdSerieDto.idTmdb,
       });
       await this.watchedSerieRepository.insert(watchedSerie);
       return 'Série marcada como assistida com sucesso';

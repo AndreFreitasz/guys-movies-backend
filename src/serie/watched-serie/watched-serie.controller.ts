@@ -1,20 +1,74 @@
-import { Body, Controller, Get, HttpStatus, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Query, Res } from '@nestjs/common';
 import { WatchedSerieService } from './watched-serie.service';
 import { Response } from 'express';
 import { SerieDto } from '../dto/serie.dto';
 import { IsWatchedSerieDto } from '../dto/is-watched-serie.dto';
 import { GetRateSerieDto } from '../dto/get-rate-serie.dto';
+import { CreatedSerieDto } from '../dto/created-serie.dto';
 
 @Controller('watchedSerie')
 export class WatchedSerieController {
   constructor(private readonly watchedSerieService: WatchedSerieService) {}
 
+  private normalizeSeriePayload(
+    seriePayload?: Partial<SerieDto & CreatedSerieDto>,
+  ): CreatedSerieDto {
+    if (!seriePayload) {
+      throw new HttpException(
+        'Dados da série são obrigatórios',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const name = seriePayload.name;
+    const overview = seriePayload.overview;
+    const firstAirDate =
+      seriePayload.firstAirDate ?? seriePayload.first_air_date;
+    const idTmdb = seriePayload.idTmdb ?? seriePayload.id;
+    const posterPath =
+      seriePayload.posterPath ?? seriePayload.poster_path ?? null;
+    const numberOfSeasons =
+      seriePayload.numberOfSeasons ?? seriePayload.number_of_seasons ?? null;
+    const voteAverage =
+      seriePayload.voteAverage ?? seriePayload.vote_average ?? null;
+
+    if (!name || !overview || !firstAirDate || !idTmdb) {
+      throw new HttpException(
+        'Campos obrigatórios da série ausentes',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    return {
+      name,
+      overview,
+      firstAirDate,
+      idTmdb,
+      posterPath,
+      numberOfSeasons,
+      voteAverage,
+    };
+  }
+
   @Post()
   async markAsWatched(
-    @Body() { watchedAt, userId, serieDto }: { watchedAt: Date; userId: number; serieDto: SerieDto },
+    @Body()
+    body: {
+      watchedAt: Date;
+      userId: number;
+      serieDto?: SerieDto;
+      createSerieDto?: CreatedSerieDto;
+    },
     @Res() res: Response,
   ) {
-    const message = await this.watchedSerieService.markAsWatched(watchedAt, userId, serieDto);
+    const { watchedAt, userId, serieDto, createSerieDto } = body;
+    const serieData = this.normalizeSeriePayload(serieDto ?? createSerieDto);
+
+    const message = await this.watchedSerieService.markAsWatched(
+      watchedAt,
+      userId,
+      serieData,
+    );
     if (message === 'Série desmarcada com sucesso') {
       return res.status(HttpStatus.OK).json({ message });
     }

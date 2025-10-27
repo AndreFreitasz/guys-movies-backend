@@ -19,6 +19,13 @@ export class WaitingSerieService {
     await this.createdSerieService.createSerie(createdSerieDto);
     const serie = await this.createdSerieService.findSerieByIdTmdb(createdSerieDto.idTmdb);
 
+    if (!serie) {
+      throw new HttpException(
+        'Série não encontrada para cadastro',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
     try {
       const existingWaitingSerie = await this.waitingSerieRepository.findOne({
         where: {

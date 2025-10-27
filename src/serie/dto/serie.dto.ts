@@ -13,6 +13,14 @@ export class SerieDto {
   providers?: ProvidersDto;
   cast?: CastDto[];
   created_by?: CreatorDto[];
+
+  // aliases em camelCase para compatibilidade com payloads do cliente
+  posterPath?: string;
+  wallpaperPath?: string;
+  voteAverage?: number;
+  firstAirDate?: string;
+  numberOfSeasons?: number;
+  idTmdb?: number;
 }
 
 export class CastDto {

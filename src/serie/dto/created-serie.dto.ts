@@ -3,7 +3,7 @@ export class CreatedSerieDto {
   overview: string;
   firstAirDate: string;
   idTmdb: number;
-  posterPath: string;
-  numberOfSeasons: number;
-  voteAverage: number;
+  posterPath?: string | null;
+  numberOfSeasons?: number | null;
+  voteAverage?: number | null;
 }
