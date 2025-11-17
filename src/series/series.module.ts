@@ -5,5 +5,6 @@ import { SeriesController } from './series.controller';
 @Module({
   providers: [SeriesService],
   controllers: [SeriesController],
+  exports: [SeriesService],
 })
 export class SeriesModule {}
