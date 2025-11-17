@@ -17,6 +17,7 @@ import { SerieModule } from 'src/serie/serie.module';
 import { WatchedSerieModule } from 'src/serie/watched-serie/watched-serie.module';
 import { WaitingSerieModule } from 'src/serie/waiting-serie/waiting-serie.module';
 import { CreatedSerieModule } from 'src/serie/created-serie/created-serie.module';
+import { SearchModule } from 'src/search/search.module';
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ dotenv.config();
     WatchedSerieModule,
     WaitingSerieModule,
     CreatedSerieModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],
