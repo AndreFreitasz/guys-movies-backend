@@ -40,10 +40,20 @@ dotenv.config();
         // aparece é um ECONNREFUSED 127.0.0.1 genérico, que não diz nada sobre
         // a causa real (variável de ambiente ausente na plataforma).
         if (!host) {
+          // Lista só os NOMES das variáveis (nunca os valores) para mostrar o
+          // que de fato chegou no processo. Se a lista vier vazia ou sem
+          // DB_HOST, o problema está na plataforma, não no código.
+          const vistas = Object.keys(process.env)
+            .filter((k) => /^(DB_|JWT_|TMDB_|CORS_|NODE_ENV$|PORT$)/.test(k))
+            .sort();
+
           throw new Error(
-            'DB_HOST não está definida. Configure as variáveis de banco no ' +
-              'painel da plataforma (DB_HOST, DB_PORT, DB_USERNAME, ' +
-              'DB_PASSWORD, DB_DATABASE) e faça um novo deploy.',
+            'DB_HOST não está definida. Variáveis da aplicação visíveis ' +
+              `dentro do container: [${vistas.join(', ') || 'nenhuma'}] ` +
+              `(${Object.keys(process.env).length} variáveis no total). ` +
+              'Se DB_HOST não aparece nessa lista, as variáveis do painel não ' +
+              'estão chegando neste deploy: confirme o serviço e o ambiente, ' +
+              'aplique as mudanças pendentes e faça um redeploy.',
           );
         }
 
