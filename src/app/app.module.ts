@@ -36,15 +36,9 @@ dotenv.config();
         const username = configService.get<string>('DB_USERNAME');
         const database = configService.get<string>('DB_DATABASE');
 
-        // Sem DB_HOST o driver pg cai no default 'localhost' e o erro que
-        // aparece é um ECONNREFUSED 127.0.0.1 genérico, que não diz nada sobre
-        // a causa real (variável de ambiente ausente na plataforma).
         if (!host) {
-          // Lista só os NOMES das variáveis (nunca os valores) para mostrar o
-          // que de fato chegou no processo. Se a lista vier vazia ou sem
-          // DB_HOST, o problema está na plataforma, não no código.
           const vistas = Object.keys(process.env)
-            .filter((k) => /^(DB_|JWT_|TMDB_|CORS_|NODE_ENV$|PORT$)/.test(k))
+            .filter(k => /^(DB_|JWT_|TMDB_|CORS_|NODE_ENV$|PORT$)/.test(k))
             .sort();
 
           throw new Error(
@@ -72,13 +66,8 @@ dotenv.config();
             configService.get<string>('DB_SSL') === 'true'
               ? { rejectUnauthorized: false }
               : false,
-          // O schema agora vem das migrations em src/migrations. O synchronize
-          // fica desligado por padrão: ligue com DB_SYNCHRONIZE=true só em
-          // desenvolvimento, se quiser o comportamento antigo.
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
-          // Roda as migrations pendentes no boot. Desligue com
-          // DB_MIGRATIONS_RUN=false se preferir rodar em um passo separado.
           migrationsRun:
             configService.get<string>('DB_MIGRATIONS_RUN') !== 'false',
           autoLoadEntities: true,

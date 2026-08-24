@@ -4,9 +4,6 @@ import { DataSource } from 'typeorm';
 
 dotenv.config();
 
-// DataSource usado pelo CLI do TypeORM (migration:generate / migration:run).
-// A aplicação em si continua se configurando pelo TypeOrmModule em app.module.ts;
-// os dois leem as mesmas variáveis de ambiente.
 export const AppDataSource = new DataSource({
   type: 'postgres',
   host: process.env.DB_HOST,
