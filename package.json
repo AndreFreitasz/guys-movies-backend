@@ -8,6 +8,10 @@
   "scripts": {
     "start": "node dist/main.js",
     "build": "nest build",
+    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js -d src/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
     "start:dev": "npm run services:up && nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "npm run build && npm run start",

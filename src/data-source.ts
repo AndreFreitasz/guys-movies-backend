@@ -1,0 +1,21 @@
+import 'reflect-metadata';
+import * as dotenv from 'dotenv';
+import { DataSource } from 'typeorm';
+
+dotenv.config();
+
+// DataSource usado pelo CLI do TypeORM (migration:generate / migration:run).
+// A aplicação em si continua se configurando pelo TypeOrmModule em app.module.ts;
+// os dois leem as mesmas variáveis de ambiente.
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 5432,
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  entities: [__dirname + '/**/*.entity{.ts,.js}'],
+  migrations: [__dirname + '/migrations/*{.ts,.js}'],
+  synchronize: false,
+});

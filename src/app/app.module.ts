@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MoviesModule } from 'src/movies/movies.module';
@@ -29,20 +30,50 @@ dotenv.config();
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        type: 'postgres' as const,
-        host: configService.get<string>('DB_HOST'),
-        port: Number(configService.get('DB_PORT')) || 5432,
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_DATABASE'),
-        ssl:
-          configService.get<string>('DB_SSL') === 'true'
-            ? { rejectUnauthorized: false }
-            : false,
-        synchronize: configService.get<string>('DB_SYNCHRONIZE') !== 'false',
-        autoLoadEntities: true,
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const host = configService.get<string>('DB_HOST');
+        const port = Number(configService.get('DB_PORT')) || 5432;
+        const username = configService.get<string>('DB_USERNAME');
+        const database = configService.get<string>('DB_DATABASE');
+
+        // Sem DB_HOST o driver pg cai no default 'localhost' e o erro que
+        // aparece é um ECONNREFUSED 127.0.0.1 genérico, que não diz nada sobre
+        // a causa real (variável de ambiente ausente na plataforma).
+        if (!host) {
+          throw new Error(
+            'DB_HOST não está definida. Configure as variáveis de banco no ' +
+              'painel da plataforma (DB_HOST, DB_PORT, DB_USERNAME, ' +
+              'DB_PASSWORD, DB_DATABASE) e faça um novo deploy.',
+          );
+        }
+
+        console.log(
+          `[db] conectando em ${username}@${host}:${port}/${database}`,
+        );
+
+        return {
+          type: 'postgres' as const,
+          host,
+          port,
+          username,
+          password: configService.get<string>('DB_PASSWORD'),
+          database,
+          ssl:
+            configService.get<string>('DB_SSL') === 'true'
+              ? { rejectUnauthorized: false }
+              : false,
+          // O schema agora vem das migrations em src/migrations. O synchronize
+          // fica desligado por padrão: ligue com DB_SYNCHRONIZE=true só em
+          // desenvolvimento, se quiser o comportamento antigo.
+          synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
+          migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
+          // Roda as migrations pendentes no boot. Desligue com
+          // DB_MIGRATIONS_RUN=false se preferir rodar em um passo separado.
+          migrationsRun:
+            configService.get<string>('DB_MIGRATIONS_RUN') !== 'false',
+          autoLoadEntities: true,
+        };
+      },
       inject: [ConfigService],
     }),
     MoviesModule,
