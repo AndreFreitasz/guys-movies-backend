@@ -6,32 +6,42 @@ import * as cookieParser from 'cookie-parser';
 
 dotenv.config();
 
+function resolveCorsOrigins(): string[] {
+  const fromEnv = process.env.CORS_ORIGINS;
+  if (fromEnv) {
+    return fromEnv
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean);
+  }
+
+  return [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://guys-movies-frontend.vercel.app',
+  ];
+}
+
 async function bootstrap() {
+  const isProduction = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
 
-  if (process.env.NODE_ENV === 'production') {
-    console.log('Production mode enabled');
+  if (isProduction) {
     app.use(helmet());
-    app.enableCors({
-      origin: [
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'https://guys-movies-frontend.vercel.app',
-      ],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      credentials: true,
-    });
-  } else {
-    app.enableCors({
-      origin: ['http://localhost:3000', 'http://localhost:3001'],
-      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-      credentials: true,
-    });
   }
 
-  app.listen(process.env.PORT || 3005, function () {
-    console.log('Nest server listening');
+  app.enableCors({
+    origin: resolveCorsOrigins(),
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
   });
+
+  const port = Number(process.env.PORT) || 3005;
+
+  await app.listen(port, '0.0.0.0');
+  console.log(
+    `Nest server listening on 0.0.0.0:${port} (${process.env.NODE_ENV ?? 'development'})`,
+  );
 }
 bootstrap();

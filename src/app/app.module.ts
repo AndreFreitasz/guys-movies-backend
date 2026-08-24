@@ -30,13 +30,17 @@ dotenv.config();
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        type: 'postgres',
+        type: 'postgres' as const,
         host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
+        port: Number(configService.get('DB_PORT')) || 5432,
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
-        synchronize: true,
+        ssl:
+          configService.get<string>('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
+        synchronize: configService.get<string>('DB_SYNCHRONIZE') !== 'false',
         autoLoadEntities: true,
       }),
       inject: [ConfigService],
@@ -48,7 +52,7 @@ dotenv.config();
     UsersModule,
     AuthModule,
     CreatedMovieModule,
-    WatchedMovieModule, 
+    WatchedMovieModule,
     WaitingMovieModule,
     WatchedSerieModule,
     WaitingSerieModule,

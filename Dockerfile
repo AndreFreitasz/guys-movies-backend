@@ -1,17 +1,28 @@
-FROM node:20
+FROM node:20-bookworm AS builder
 
 WORKDIR /usr/src/app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-RUN npm install
+RUN npm ci
 
 COPY . .
 
-COPY .env .env
-
 RUN npm run build
 
-EXPOSE 3000
+RUN npm prune --omit=dev
+
+
+FROM node:20-bookworm-slim AS runner
+
+WORKDIR /usr/src/app
+
+ENV NODE_ENV=production
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/package.json ./package.json
+
+EXPOSE 3005
 
 CMD ["node", "dist/main"]

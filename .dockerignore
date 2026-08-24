@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+.git
+.gitignore
+.env
+.env.*
+.vercel
+.vscode
+.idea
+*.log
+todo
+test
+README.md
