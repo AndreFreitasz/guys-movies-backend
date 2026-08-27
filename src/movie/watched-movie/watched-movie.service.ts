@@ -6,6 +6,12 @@ import { CreatedMovieDto } from '../dto/created-movie.dto';
 import { CreatedMovieService } from '../created-movie/created-movie.service';
 import { User } from 'src/users/entities/user.entity';
 import { Movies } from '../entities/movies.entity';
+import {
+  WatchedMovieListDto,
+  WatchedMovieListItemDto,
+} from '../dto/watched-movie-list.dto';
+
+const WATCHED_LIST_LIMIT = 500;
 
 @Injectable()
 export class WatchedMovieService {
@@ -49,6 +55,65 @@ export class WatchedMovieService {
     } catch (error) {
       throw new HttpException(
         `Erro ao marcar o filme como assistido: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async listWatchedMovies(userId: number): Promise<WatchedMovieListDto> {
+    try {
+      const watchedMovies = await this.watchedMovieRepository.find({
+        where: { idUser: { id: userId } },
+        relations: { idMovie: true },
+        order: { watchedAt: 'DESC', createdAt: 'DESC' },
+        take: WATCHED_LIST_LIMIT,
+      });
+
+      const items: WatchedMovieListItemDto[] = watchedMovies.map(watched => ({
+        idTmdb: watched.idTmdb,
+        title: watched.idMovie?.title ?? null,
+        overview: watched.idMovie?.overview ?? null,
+        posterPath: watched.idMovie?.posterPath ?? null,
+        releaseDate: watched.idMovie?.releaseDate ?? null,
+        director: watched.idMovie?.director ?? null,
+        voteAverage: watched.idMovie?.voteAverage ?? null,
+        rating: watched.rating ?? null,
+        watchedAt: watched.watchedAt
+          ? new Date(watched.watchedAt).toISOString()
+          : null,
+        createdAt: new Date(watched.createdAt).toISOString(),
+      }));
+
+      const ratings = items
+        .map(item => item.rating)
+        .filter((rating): rating is number => typeof rating === 'number');
+
+      const watchedDates = items
+        .map(item => item.watchedAt)
+        .filter((date): date is string => Boolean(date))
+        .sort();
+
+      return {
+        items,
+        stats: {
+          total: items.length,
+          rated: ratings.length,
+          averageRating: ratings.length
+            ? Number(
+                (
+                  ratings.reduce((sum, rating) => sum + rating, 0) /
+                  ratings.length
+                ).toFixed(2),
+              )
+            : null,
+          lastWatchedAt: watchedDates.length
+            ? watchedDates[watchedDates.length - 1]
+            : null,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        `Erro ao listar os filmes assistidos: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

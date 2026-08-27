@@ -1,5 +1,6 @@
 import {
   IsInt,
+  Matches,
   IsNumber,
   IsOptional,
   IsString,
@@ -10,7 +11,7 @@ import {
 
 export class CreatedSerieDto {
   @IsString()
-  @MaxLength(300)
+  @MaxLength(100)
   name: string;
 
   @IsOptional()
@@ -29,7 +30,10 @@ export class CreatedSerieDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(300)
+  @MaxLength(255)
+  @Matches(/^(https:\/\/image\.tmdb\.org\/|\/)/, {
+    message: 'posterPath deve apontar para a CDN de imagens da TMDB',
+  })
   posterPath?: string | null;
 
   @IsOptional()

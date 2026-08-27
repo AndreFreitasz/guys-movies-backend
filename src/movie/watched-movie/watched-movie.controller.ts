@@ -35,6 +35,11 @@ export class WatchedMovieController {
     return { message, unmarked: message === 'Filme desmarcado com sucesso' };
   }
 
+  @Get('list')
+  async listWatched(@CurrentUser('id') userId: number) {
+    return this.watchedMovieService.listWatchedMovies(userId);
+  }
+
   @Get('isWatched')
   async isWatched(
     @CurrentUser('id') userId: number,

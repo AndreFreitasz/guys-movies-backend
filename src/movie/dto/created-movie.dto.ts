@@ -1,5 +1,6 @@
 import {
   IsInt,
+  Matches,
   IsNumber,
   IsOptional,
   IsString,
@@ -10,7 +11,7 @@ import {
 
 export class CreatedMovieDto {
   @IsString()
-  @MaxLength(300)
+  @MaxLength(100)
   title: string;
 
   @IsOptional()
@@ -29,12 +30,15 @@ export class CreatedMovieDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(300)
+  @MaxLength(255)
+  @Matches(/^(https:\/\/image\.tmdb\.org\/|\/)/, {
+    message: 'posterPath deve apontar para a CDN de imagens da TMDB',
+  })
   posterPath: string;
 
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(80)
   director: string;
 
   @IsOptional()
