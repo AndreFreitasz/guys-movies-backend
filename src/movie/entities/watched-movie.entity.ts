@@ -25,7 +25,7 @@ export class WatchedMovie {
   @Column({ type: 'float', nullable: true })
   rating: number;
 
-  @Column({ type: 'date', nullable: true})
+  @Column({ type: 'date', nullable: true })
   watchedAt: Date;
 
   @CreateDateColumn()

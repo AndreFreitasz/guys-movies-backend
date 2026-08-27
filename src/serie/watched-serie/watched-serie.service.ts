@@ -98,7 +98,11 @@ export class WatchedSerieService {
     }
   }
 
-  async rateSerie(userId: number, idTmdb: number, rating: number): Promise<string> {
+  async rateSerie(
+    userId: number,
+    idTmdb: number,
+    rating: number,
+  ): Promise<string> {
     try {
       let watchedSerie = await this.watchedSerieRepository.findOne({
         where: {

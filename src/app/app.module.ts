@@ -19,6 +19,8 @@ import { WatchedSerieModule } from 'src/serie/watched-serie/watched-serie.module
 import { WaitingSerieModule } from 'src/serie/waiting-serie/waiting-serie.module';
 import { CreatedSerieModule } from 'src/serie/created-serie/created-serie.module';
 import { SearchModule } from 'src/search/search.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 dotenv.config();
 
@@ -28,6 +30,7 @@ dotenv.config();
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
@@ -90,6 +93,6 @@ dotenv.config();
     SearchModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

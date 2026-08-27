@@ -1,4 +1,7 @@
+import { IsInt, Min } from 'class-validator';
+
 export class IsWatchedMovieDto {
-    userId: number;
-    idTmdb: number;
+  @IsInt()
+  @Min(1)
+  idTmdb: number;
 }

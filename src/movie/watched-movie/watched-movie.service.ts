@@ -15,7 +15,11 @@ export class WatchedMovieService {
     private readonly createdMovieService: CreatedMovieService,
   ) {}
 
-  async markAsWatched(watchedAt: Date, userId: number, createMovieDto: CreatedMovieDto): Promise<string> {
+  async markAsWatched(
+    watchedAt: Date,
+    userId: number,
+    createMovieDto: CreatedMovieDto,
+  ): Promise<string> {
     await this.createdMovieService.createMovie(createMovieDto);
     const movie = await this.createdMovieService.findMovieByIdTmdb(
       createMovieDto.idTmdb,
@@ -42,7 +46,7 @@ export class WatchedMovieService {
       });
       await this.watchedMovieRepository.insert(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
-    } catch (error){
+    } catch (error) {
       throw new HttpException(
         `Erro ao marcar o filme como assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -76,7 +80,7 @@ export class WatchedMovieService {
       const watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
           idUser: { id: idUser },
-          idTmdb: idTmdb
+          idTmdb: idTmdb,
         },
       });
       return watchedMovie ? true : false;
@@ -88,12 +92,16 @@ export class WatchedMovieService {
     }
   }
 
-  async rateMovie(userId: number, idTmdb: number, rating: number): Promise<string> {
+  async rateMovie(
+    userId: number,
+    idTmdb: number,
+    rating: number,
+  ): Promise<string> {
     try {
       let watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
           idUser: { id: userId },
-          idTmdb: idTmdb
+          idTmdb: idTmdb,
         },
       });
       if (watchedMovie) {

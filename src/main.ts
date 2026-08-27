@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app/app.module';
 import * as dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -23,13 +24,19 @@ function resolveCorsOrigins(): string[] {
 }
 
 async function bootstrap() {
-  const isProduction = process.env.NODE_ENV === 'production';
   const app = await NestFactory.create(AppModule);
-  app.use(cookieParser());
 
-  if (isProduction) {
-    app.use(helmet());
-  }
+  app.use(cookieParser());
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
 
   app.enableCors({
     origin: resolveCorsOrigins(),

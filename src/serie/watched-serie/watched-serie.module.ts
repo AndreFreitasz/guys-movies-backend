@@ -10,7 +10,7 @@ import { CreatedSerieModule } from '../created-serie/created-serie.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([WatchedSerie, User, Series]),
-    CreatedSerieModule
+    CreatedSerieModule,
   ],
   controllers: [WatchedSerieController],
   providers: [WatchedSerieService],

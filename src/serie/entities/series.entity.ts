@@ -1,10 +1,5 @@
-import {
-  Entity,
-  Column,
-  PrimaryGeneratedColumn,
-  OneToMany,
-} from 'typeorm';
-import { WatchedSerie } from './watched-serie.entity'
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { WatchedSerie } from './watched-serie.entity';
 import { WaitingSeries } from './waiting-serie.entity';
 
 @Entity()

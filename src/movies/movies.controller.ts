@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common';
 import { MoviesService } from './movies.service';
 
 @Controller('movies')
@@ -6,8 +13,10 @@ export class MoviesController {
   constructor(private readonly moviesService: MoviesService) {}
 
   @Get('popular')
-  getTopMovies() {
-    return this.moviesService.getTopMovies();
+  getTopMovies(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  ) {
+    return this.moviesService.getTopMovies(page);
   }
 
   @Get('popularByProviders')
@@ -16,7 +25,7 @@ export class MoviesController {
   }
 
   @Get('popularByGenres/:genreId')
-  getTopMoviesByGenres(@Param('genreId') genreId: number) {
+  getTopMoviesByGenres(@Param('genreId') genreId: string) {
     return this.moviesService.getTopMoviesByGenres(genreId);
   }
 

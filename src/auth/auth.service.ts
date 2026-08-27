@@ -1,8 +1,9 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from 'src/users/users.service';
-import { compareSync as bcryptCompareSync } from 'bcrypt';
+import { compare as bcryptCompare } from 'bcrypt';
 import { AuthResponseDto } from './dto/auth.dto';
+import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -13,9 +14,11 @@ export class AuthService {
 
   async signIn(email: string, password: string): Promise<AuthResponseDto> {
     const foundUser = await this.usersService.findByEmail(email);
+    const passwordMatches =
+      foundUser && (await bcryptCompare(password, foundUser.password));
 
-    if (!foundUser || !bcryptCompareSync(password, foundUser.password)) {
-      throw new UnauthorizedException('E-mail ou senha inválidos');
+    if (!passwordMatches) {
+      throw new UnauthorizedException('E-mail ou senha invalidos');
     }
 
     const payload = { email: foundUser.email, sub: foundUser.id };
@@ -24,11 +27,10 @@ export class AuthService {
     return { accessToken };
   }
 
-  async getProfile(token: string) {
-    const payload = this.jwtService.verify(token);
-    const user = await this.usersService.findById(payload.sub);
+  async getProfileById(userId: number): Promise<User> {
+    const user = await this.usersService.findById(userId);
     if (!user) {
-      throw new UnauthorizedException('Usuário não encontrado');
+      throw new UnauthorizedException('Usuario nao encontrado');
     }
     return user;
   }

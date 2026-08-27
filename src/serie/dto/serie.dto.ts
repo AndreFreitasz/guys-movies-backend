@@ -1,10 +1,9 @@
-
 export class SerieDto {
   id: number;
   name: string;
   overview: string;
-  poster_path: string;
-  wallpaper_path: string;
+  poster_path: string | null;
+  wallpaper_path: string | null;
   vote_average: number;
   first_air_date: string;
   genres: string[];
@@ -26,13 +25,13 @@ export class SerieDto {
 export class CastDto {
   name: string;
   character: string;
-  profile_path: string;
+  profile_path: string | null;
 }
 
 export class ProviderDto {
   provider_name: string;
-  logo_path: string;
-  provider_id: number;
+  logo_path: string | null;
+  id_provider: number;
 }
 
 export class ProvidersDto {
@@ -43,5 +42,5 @@ export class ProvidersDto {
 
 export class CreatorDto {
   name: string;
-  profile_path: string;
+  profile_path: string | null;
 }

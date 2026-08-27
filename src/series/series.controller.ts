@@ -20,7 +20,7 @@ export class SeriesController {
   }
 
   @Get('popularByGenres/:genreId')
-  getTopSeriesByGenres(@Param('genreId') genreId: number): Promise<Series[]> {
+  getTopSeriesByGenres(@Param('genreId') genreId: string): Promise<Series[]> {
     return this.seriesService.getTopSeriesByGenres(genreId);
   }
 

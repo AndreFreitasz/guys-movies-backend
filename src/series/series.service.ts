@@ -9,12 +9,15 @@ import {
   ProviderRaw,
   ProviderResponse,
 } from './interfaces/provider.interface';
+import { TtlCache } from '../common/ttl-cache';
 
 dotenv.config();
 
 @Injectable()
 export class SeriesService {
   private readonly apiKey = process.env.TMDB_API_KEY;
+  private readonly listCache = new TtlCache<Series[]>(15 * 60 * 1000);
+  private readonly searchCache = new TtlCache<Series[]>(5 * 60 * 1000);
   private readonly baseUrl = 'https://api.themoviedb.org/3';
   private readonly imageBaseUrl = 'https://image.tmdb.org/t/p/w500';
 
@@ -51,7 +54,9 @@ export class SeriesService {
   }
 
   private async fetchFromApiSeries(url: string): Promise<Series[]> {
-    const response = await axios.get<ApiResponse<SeriesRaw>>(url);
+    const response = await axios.get<ApiResponse<SeriesRaw>>(url, {
+      timeout: 8000,
+    });
     const dataSeries = response.data;
     const series: Series[] = dataSeries.results.map((item: SeriesRaw) =>
       this.formatSeries(item),
@@ -62,10 +67,11 @@ export class SeriesService {
 
   async getTopSeries(): Promise<Series[]> {
     try {
-      const urlTopSeries = `${this.baseUrl}/tv/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`;
-      const topSeries = await this.fetchFromApiSeries(urlTopSeries);
-
-      return topSeries;
+      return await this.listCache.resolve('popular', () =>
+        this.fetchFromApiSeries(
+          `${this.baseUrl}/tv/popular?api_key=${this.apiKey}&language=pt-BR&region=BR`,
+        ),
+      );
     } catch (error) {
       console.error('Error fetching top series:', error);
       throw new HttpException(
@@ -76,11 +82,11 @@ export class SeriesService {
   }
 
   private async getTopSeriesProvider(providerId: number): Promise<Series[]> {
-    const topSeriesPopularUrl = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`;
-
-    const topSeriesProviders =
-      await this.fetchFromApiSeries(topSeriesPopularUrl);
-    return topSeriesProviders;
+    return this.listCache.resolve(`provider:${providerId}`, () =>
+      this.fetchFromApiSeries(
+        `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&with_watch_providers=${providerId}&watch_region=BR&sort_by=popularity.desc`,
+      ),
+    );
   }
 
   async getAllTopSeriesByProviders(): Promise<
@@ -120,19 +126,28 @@ export class SeriesService {
     }
   }
 
-  async getTopSeriesByGenres(genreId: number): Promise<Series[]> {
-    try {
-      const genreUrlPage1 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&without_genres=16&sort_by=vote_average.desc&vote_count.gte=300&page=1`;
-      const genreUrlPage2 = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=popularity.desc&with_genres=${genreId}&without_genres=16&sort_by=vote_average.desc&vote_count.gte=300&page=2`;
+  async getTopSeriesByGenres(genreId: string): Promise<Series[]> {
+    const safeGenreId = String(genreId).replace(/[^0-9,]/g, '');
+    if (!safeGenreId) {
+      throw new HttpException('Gênero inválido', HttpStatus.BAD_REQUEST);
+    }
 
-      const [seriesPage1, seriesPage2] = await Promise.all([
-        this.fetchFromApiSeries(genreUrlPage1),
-        this.fetchFromApiSeries(genreUrlPage2),
-      ]);
-      const seriesPopularByGenre = [...seriesPage1, ...seriesPage2];
-      const filteredSeries = this.removedSeriesAsian(seriesPopularByGenre);
-      return filteredSeries;
+    try {
+      return await this.listCache.resolve(`genre:${safeGenreId}`, async () => {
+        const buildUrl = (page: number) =>
+          `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR` +
+          `&with_genres=${safeGenreId}&without_genres=16` +
+          `&sort_by=vote_average.desc&vote_count.gte=300&page=${page}`;
+
+        const [seriesPage1, seriesPage2] = await Promise.all([
+          this.fetchFromApiSeries(buildUrl(1)),
+          this.fetchFromApiSeries(buildUrl(2)),
+        ]);
+
+        return this.removedSeriesAsian([...seriesPage1, ...seriesPage2]);
+      });
     } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
         `Failed to fetch top series by genre: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -142,12 +157,11 @@ export class SeriesService {
 
   async getTopRatedSeries(): Promise<Series[]> {
     try {
-      const currentDate = new Date();
-      const lastYear = currentDate.getFullYear();
-
-      const url = `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=vote_average.desc&vote_count.gte=1500`;
-      const topRatedSeries = await this.fetchFromApiSeries(url);
-      return topRatedSeries;
+      return await this.listCache.resolve('topRated', () =>
+        this.fetchFromApiSeries(
+          `${this.baseUrl}/discover/tv?api_key=${this.apiKey}&language=pt-BR&region=BR&sort_by=vote_average.desc&vote_count.gte=1500`,
+        ),
+      );
     } catch (error) {
       throw new HttpException(
         `Failed to fetch top rated series: ${error.message}`,
@@ -157,23 +171,23 @@ export class SeriesService {
   }
 
   async searchSeries(query: string): Promise<Series[]> {
+    if (!query?.trim()) return [];
+
     try {
-      const url = `${this.baseUrl}/search/tv?api_key=${this.apiKey}&language=pt-BR&query=${encodeURIComponent(query)}`;
-      console.log(`Fetching from URL: ${url}`);
-      const response = await axios.get<ApiResponse<SeriesRaw>>(url);
-      const dataSeries = response.data;
+      return await this.searchCache.resolve(
+        query.trim().toLowerCase(),
+        async () => {
+          const series = await this.fetchFromApiSeries(
+            `${this.baseUrl}/search/tv?api_key=${this.apiKey}&language=pt-BR&query=${encodeURIComponent(query)}`,
+          );
 
-      const searchSeries: Series[] = dataSeries.results
-        .filter((item: SeriesRaw) => item.name)
-        .map((item: SeriesRaw) => this.formatSeries(item))
-        .sort((seriesA: Series, seriesB: Series) => {
-          if (seriesA.name === seriesB.name) {
-            return seriesB.popularity - seriesA.popularity;
-          }
-          return 0;
-        });
-
-      return searchSeries;
+          return series
+            .filter(item => item.name)
+            .sort(
+              (seriesA, seriesB) => seriesB.popularity - seriesA.popularity,
+            );
+        },
+      );
     } catch (error) {
       throw new HttpException(
         `Failed to search series: ${error.message}`,

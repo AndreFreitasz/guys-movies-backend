@@ -1,44 +1,72 @@
-import { Body, Controller, Get, HttpStatus, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { WatchedMovieService } from './watched-movie.service';
-import { Response } from 'express';
-import { CreatedMovieDto } from '../dto/created-movie.dto';
 import { IsWatchedMovieDto } from '../dto/is-watched.dto';
 import { GetRateDto } from '../dto/get-rate.dto';
+import { MarkWatchedMovieDto } from '../dto/mark-watched.dto';
+import { RateMovieDto } from '../dto/rate-movie.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { CurrentUser } from '../../auth/current-user.decorator';
 
 @Controller('watchedMovie')
+@UseGuards(JwtAuthGuard)
 export class WatchedMovieController {
   constructor(private readonly watchedMovieService: WatchedMovieService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   async markAsWatched(
-    @Body() {watchedAt, userId, createMovieDto}: {watchedAt:Date; userId:number; createMovieDto:CreatedMovieDto;},
-    @Res() res: Response,
+    @CurrentUser('id') userId: number,
+    @Body() body: MarkWatchedMovieDto,
   ) {
-    const message = await this.watchedMovieService.markAsWatched(watchedAt, userId, createMovieDto);
-    if (message === 'Filme desmarcado com sucesso') {
-      return res.status(HttpStatus.OK).json({ message });
-    }
-    return res.status(HttpStatus.CREATED).json({ message });
+    const message = await this.watchedMovieService.markAsWatched(
+      new Date(body.watchedAt),
+      userId,
+      body.createMovieDto,
+    );
+    return { message, unmarked: message === 'Filme desmarcado com sucesso' };
   }
 
   @Get('isWatched')
-  async isWatched(@Query() query: IsWatchedMovieDto, @Res() res: Response) {
-    const watched = await this.watchedMovieService.isWatchedMovie(query.userId, query.idTmdb);
-    return res.status(HttpStatus.OK).json({ watched });
+  async isWatched(
+    @CurrentUser('id') userId: number,
+    @Query() query: IsWatchedMovieDto,
+  ) {
+    const watched = await this.watchedMovieService.isWatchedMovie(
+      userId,
+      query.idTmdb,
+    );
+    return { watched };
   }
 
   @Post('rate')
+  @HttpCode(HttpStatus.OK)
   async rateMovie(
-    @Body() { userId, idTmdb, rating }: { userId: number; idTmdb: number; rating: number },
-    @Res() res: Response,
+    @CurrentUser('id') userId: number,
+    @Body() body: RateMovieDto,
   ) {
-    const message = await this.watchedMovieService.rateMovie(userId, idTmdb, rating);
-    return res.status(HttpStatus.OK).json({ message });
+    const message = await this.watchedMovieService.rateMovie(
+      userId,
+      body.idTmdb,
+      body.rating,
+    );
+    return { message };
   }
 
   @Get('getRate')
-  async getRate(@Query() query: GetRateDto, @Res() res: Response) {
-    const rate = await this.watchedMovieService.getMovieRating(query.userId, query.idTmdb);
-    return res.status(HttpStatus.OK).json({ rate });
+  async getRate(@CurrentUser('id') userId: number, @Query() query: GetRateDto) {
+    const rate = await this.watchedMovieService.getMovieRating(
+      userId,
+      query.idTmdb,
+    );
+    return { rate };
   }
 }

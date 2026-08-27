@@ -1,29 +1,49 @@
-import { Body, Controller, Get, HttpStatus, Post, Query, Res } from '@nestjs/common';
-import { Response } from 'express';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { WaitingMovieService } from './waiting-movie.service';
-import { CreatedMovieDto } from '../dto/created-movie.dto';
 import { IsWaitingMovieDto } from '../dto/is-waiting.dto';
+import { MarkWaitingMovieDto } from '../dto/mark-waiting.dto';
+import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { CurrentUser } from '../../auth/current-user.decorator';
 
 @Controller('waitingMovie')
+@UseGuards(JwtAuthGuard)
 export class WaitingMovieController {
   constructor(private readonly waitingMovieService: WaitingMovieService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   async markAsWaiting(
-    @Body() { userId, createMovieDto }: { userId: number; createMovieDto: CreatedMovieDto },
-    @Res() res: Response
+    @CurrentUser('id') userId: number,
+    @Body() body: MarkWaitingMovieDto,
   ) {
-    const message = await this.waitingMovieService.markAsWaiting(userId, createMovieDto);
-    if (message === 'Filme retirado da lista de espera') {
-      return res.status(HttpStatus.OK).json({ message });
-    }
-    return res.status(HttpStatus.CREATED).json({ message });
+    const message = await this.waitingMovieService.markAsWaiting(
+      userId,
+      body.createMovieDto,
+    );
+    return {
+      message,
+      unmarked: message === 'Filme retirado da lista de espera',
+    };
   }
 
   @Get('isWaiting')
-  async isWaiting(@Query() query: IsWaitingMovieDto, @Res() res: Response) {
-    const waiting = await this.waitingMovieService.isWaitingMovie(query.userId, query.idTmdb);
-    return res.status(HttpStatus.OK).json({ waiting });
+  async isWaiting(
+    @CurrentUser('id') userId: number,
+    @Query() query: IsWaitingMovieDto,
+  ) {
+    const waiting = await this.waitingMovieService.isWaitingMovie(
+      userId,
+      query.idTmdb,
+    );
+    return { waiting };
   }
-  
 }

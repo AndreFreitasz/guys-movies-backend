@@ -1,23 +1,28 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { CreatedSerieDto } from "../dto/created-serie.dto";
-import { InjectRepository } from "@nestjs/typeorm";
-import { WaitingSeries } from "../entities/waiting-serie.entity";
-import { Repository } from "typeorm";
-import { User } from "src/users/entities/user.entity";
-import { Series } from "../entities/series.entity";
-import { CreatedSerieService } from "../created-serie/created-serie.service";
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { CreatedSerieDto } from '../dto/created-serie.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { WaitingSeries } from '../entities/waiting-serie.entity';
+import { Repository } from 'typeorm';
+import { User } from 'src/users/entities/user.entity';
+import { Series } from '../entities/series.entity';
+import { CreatedSerieService } from '../created-serie/created-serie.service';
 
 @Injectable()
 export class WaitingSerieService {
   constructor(
     @InjectRepository(WaitingSeries)
     private readonly waitingSerieRepository: Repository<WaitingSeries>,
-    private readonly createdSerieService: CreatedSerieService
+    private readonly createdSerieService: CreatedSerieService,
   ) {}
 
-  async markAsWaiting(userId: number, createdSerieDto: CreatedSerieDto): Promise<string> {
+  async markAsWaiting(
+    userId: number,
+    createdSerieDto: CreatedSerieDto,
+  ): Promise<string> {
     await this.createdSerieService.createSerie(createdSerieDto);
-    const serie = await this.createdSerieService.findSerieByIdTmdb(createdSerieDto.idTmdb);
+    const serie = await this.createdSerieService.findSerieByIdTmdb(
+      createdSerieDto.idTmdb,
+    );
 
     if (!serie) {
       throw new HttpException(
@@ -44,7 +49,7 @@ export class WaitingSerieService {
       });
       await this.waitingSerieRepository.save(waitingSerie);
       return 'Série adicionada na lista de espera';
-    } catch (error){
+    } catch (error) {
       throw new HttpException(
         `Erro ao atualizar a série da sua lista de espera: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -78,7 +83,7 @@ export class WaitingSerieService {
       const waitingSerie = await this.waitingSerieRepository.findOne({
         where: {
           user: { id: idUser },
-          idTmdb: idTmdb
+          idTmdb: idTmdb,
         },
       });
       return waitingSerie ? true : false;

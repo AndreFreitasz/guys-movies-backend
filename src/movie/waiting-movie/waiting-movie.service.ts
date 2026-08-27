@@ -1,11 +1,11 @@
-import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { CreatedMovieDto } from "../dto/created-movie.dto";
-import { InjectRepository } from "@nestjs/typeorm";
-import { WaitingMovies } from "../entities/waiting-movie.entity";
-import { Repository } from "typeorm";
-import { CreatedMovieService } from "../created-movie/created-movie.service";
-import { User } from "src/users/entities/user.entity";
-import { Movies } from "../entities/movies.entity";
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { CreatedMovieDto } from '../dto/created-movie.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { WaitingMovies } from '../entities/waiting-movie.entity';
+import { Repository } from 'typeorm';
+import { CreatedMovieService } from '../created-movie/created-movie.service';
+import { User } from 'src/users/entities/user.entity';
+import { Movies } from '../entities/movies.entity';
 
 @Injectable()
 export class WaitingMovieService {
@@ -15,7 +15,10 @@ export class WaitingMovieService {
     private readonly createdMovieService: CreatedMovieService,
   ) {}
 
-  async markAsWaiting(userId: number, createMovieDto: CreatedMovieDto): Promise<string> {
+  async markAsWaiting(
+    userId: number,
+    createMovieDto: CreatedMovieDto,
+  ): Promise<string> {
     await this.createdMovieService.createMovie(createMovieDto);
     const movie = await this.createdMovieService.findMovieByIdTmdb(
       createMovieDto.idTmdb,
@@ -33,15 +36,15 @@ export class WaitingMovieService {
         await this.destroyWaitingMovie(userId, movie.id);
         return 'Filme retirado da lista de espera';
       }
-   
+
       const waitingMovie = this.waitingMovieRepository.create({
         user: { id: userId } as User,
-        movie: { id: movie.id } as Movies,     
-        idTmdb: createMovieDto.idTmdb,     
+        movie: { id: movie.id } as Movies,
+        idTmdb: createMovieDto.idTmdb,
       });
       await this.waitingMovieRepository.save(waitingMovie);
       return 'Filme adicionado na lista de espera';
-    } catch (error){
+    } catch (error) {
       throw new HttpException(
         `Erro ao atualiza o filme da sua lista de espera: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -75,7 +78,7 @@ export class WaitingMovieService {
       const waitingMovie = await this.waitingMovieRepository.findOne({
         where: {
           user: { id: idUser },
-          idTmdb: idTmdb
+          idTmdb: idTmdb,
         },
       });
       return waitingMovie ? true : false;

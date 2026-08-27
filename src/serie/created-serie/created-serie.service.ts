@@ -1,4 +1,9 @@
-import { ConflictException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Series } from '../entities/series.entity';
@@ -20,7 +25,9 @@ export class CreatedSerieService {
     return this.serieRepository.findOne({ where: { idTmdb } });
   }
 
-  async createSerie(createSerieDto: CreatedSerieDto): Promise<{ message: string }> {
+  async createSerie(
+    createSerieDto: CreatedSerieDto,
+  ): Promise<{ message: string }> {
     const { idTmdb } = createSerieDto;
     try {
       const existingSerieCount = await this.checkIfSerieExists(idTmdb);

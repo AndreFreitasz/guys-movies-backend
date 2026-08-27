@@ -1,30 +1,28 @@
-import { Dir } from 'fs';
-
 export class MovieDto {
   id: number;
   title: string;
   overview: string;
-  poster_path: string;
-  wallpaper_path: string;
+  poster_path: string | null;
+  wallpaper_path: string | null;
   vote_average: number;
   release_date: string;
   genres: string[];
   adult: boolean;
   providers?: ProvidersDto;
   cast?: CastDto[];
-  director?: DirectorDto;
+  director?: DirectorDto | null;
 }
 
 export class CastDto {
   name: string;
   character: string;
-  profile_path: string;
+  profile_path: string | null;
 }
 
 export class ProviderDto {
   provider_name: string;
-  logo_path: string;
-  provider_id: number;
+  logo_path: string | null;
+  id_provider: number;
 }
 
 export class ProvidersDto {
@@ -35,5 +33,5 @@ export class ProvidersDto {
 
 export class DirectorDto {
   name: string;
-  profile_path: string;
+  profile_path: string | null;
 }

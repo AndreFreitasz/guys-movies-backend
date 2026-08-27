@@ -1,31 +1,35 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UnauthorizedException,
-} from '@nestjs/common';
-import { AuthResponseDto } from './dto/auth.dto';
+import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
-import { Request, Response } from 'express';
+import { CookieOptions, Response } from 'express';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { CurrentUser } from './current-user.decorator';
+import { Throttle } from '@nestjs/throttler';
+import type { AuthenticatedUser } from './jwt-auth.guard';
+
+const isProduction = () => process.env.NODE_ENV === 'production';
+
+const buildCookieOptions = (): CookieOptions => ({
+  httpOnly: true,
+  secure: isProduction(),
+  sameSite: isProduction() ? 'none' : 'lax',
+  path: '/',
+});
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async signIn(@Body() loginDto: LoginDto, @Res() res: Response) {
     const { accessToken } = await this.authService.signIn(
       loginDto.email,
       loginDto.password,
     );
+
     res.cookie('jwt', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
+      ...buildCookieOptions(),
       maxAge: 7200000,
     });
 
@@ -33,25 +37,21 @@ export class AuthController {
   }
 
   @Get('profile')
-  async getProfile(@Req() req: Request, @Res() res: Response) {
-
-    const token = req.cookies?.jwt;
-    if (!token) {
-      throw new UnauthorizedException('Token não fornecido');
-    }
-
-    const user = await this.authService.getProfile(token);
-    return res.json({
+  @UseGuards(JwtAuthGuard)
+  async getProfile(@CurrentUser() currentUser: AuthenticatedUser) {
+    const user = await this.authService.getProfileById(currentUser.id);
+    return {
       id: user.id,
       username: user.username,
       email: user.email,
       name: user.name,
-    });
+    };
   }
 
   @Post('logout')
+  @UseGuards(JwtAuthGuard)
   async signOut(@Res() res: Response) {
-    res.clearCookie('jwt');
+    res.clearCookie('jwt', buildCookieOptions());
     return res.json({ message: 'Logout bem-sucedido' });
   }
 }

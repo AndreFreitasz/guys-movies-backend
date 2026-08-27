@@ -41,7 +41,7 @@ export class SearchService {
     }));
 
     const allResults = [...movieResults, ...serieResults];
-    
+
     return allResults.sort((a, b) => b.popularity - a.popularity);
   }
 }

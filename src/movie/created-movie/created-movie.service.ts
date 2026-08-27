@@ -25,7 +25,9 @@ export class CreatedMovieService {
     return this.movieRepository.findOne({ where: { idTmdb } });
   }
 
-  async createMovie(createMovieDto: CreatedMovieDto): Promise<{ message: string }> {
+  async createMovie(
+    createMovieDto: CreatedMovieDto,
+  ): Promise<{ message: string }> {
     const { idTmdb } = createMovieDto;
     try {
       const existingMovieCount = await this.checkIfMovieExists(idTmdb);
