@@ -33,7 +33,7 @@ export class AuthController {
       maxAge: 7200000,
     });
 
-    return res.json({ message: 'Login bem-sucedido' });
+    return res.json({ message: 'Login bem-sucedido', accessToken });
   }
 
   @Get('profile')
