@@ -161,27 +161,41 @@ export class WatchedMovieService {
     userId: number,
     idTmdb: number,
     rating: number,
-  ): Promise<string> {
+    createMovieDto?: CreatedMovieDto,
+  ): Promise<{ message: string; created: boolean }> {
     try {
-      let watchedMovie = await this.watchedMovieRepository.findOne({
+      const watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
           idUser: { id: userId },
           idTmdb: idTmdb,
         },
       });
+
       if (watchedMovie) {
         watchedMovie.rating = rating;
         await this.watchedMovieRepository.save(watchedMovie);
-        return 'Avaliação atualizada com sucesso';
+        return { message: 'Avaliação atualizada com sucesso', created: false };
       }
-      watchedMovie = this.watchedMovieRepository.create({
+
+      if (createMovieDto) {
+        await this.createdMovieService.createMovie(createMovieDto);
+      }
+
+      const movie = await this.createdMovieService.findMovieByIdTmdb(idTmdb);
+
+      const createdRecord = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
+        idMovie: movie ? ({ id: movie.id } as Movies) : null,
         idTmdb: idTmdb,
         rating: rating,
         watchedAt: null,
       });
-      await this.watchedMovieRepository.insert(watchedMovie);
-      return 'Filme marcado como assistido com sucesso';
+      await this.watchedMovieRepository.insert(createdRecord);
+
+      return {
+        message: 'Filme marcado como assistido com sucesso',
+        created: true,
+      };
     } catch (error) {
       throw new HttpException(
         `Erro ao atualizar a avaliação: ${error.message}`,

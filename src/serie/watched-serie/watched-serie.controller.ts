@@ -53,12 +53,12 @@ export class WatchedSerieController {
     @CurrentUser('id') userId: number,
     @Body() body: RateSerieDto,
   ) {
-    const message = await this.watchedSerieService.rateSerie(
+    return this.watchedSerieService.rateSerie(
       userId,
       body.idTmdb,
       body.rating,
+      body.createSerieDto,
     );
-    return { message };
   }
 
   @Get('getRate')

@@ -58,12 +58,12 @@ export class WatchedMovieController {
     @CurrentUser('id') userId: number,
     @Body() body: RateMovieDto,
   ) {
-    const message = await this.watchedMovieService.rateMovie(
+    return this.watchedMovieService.rateMovie(
       userId,
       body.idTmdb,
       body.rating,
+      body.createMovieDto,
     );
-    return { message };
   }
 
   @Get('getRate')
