@@ -6,6 +6,7 @@ import { CreatedSerieDto } from '../dto/created-serie.dto';
 import { User } from 'src/users/entities/user.entity';
 import { Series } from '../entities/series.entity';
 import { CreatedSerieService } from '../created-serie/created-serie.service';
+import { WatchedSerieListItemDto } from '../dto/watched-serie-list.dto';
 
 @Injectable()
 export class WatchedSerieService {
@@ -20,7 +21,6 @@ export class WatchedSerieService {
     userId: number,
     createdSerieDto: CreatedSerieDto,
   ): Promise<string> {
-    // Garante que a série está cadastrada na base
     await this.createdSerieService.createSerie(createdSerieDto);
     const serie = await this.createdSerieService.findSerieByIdTmdb(
       createdSerieDto.idTmdb,
@@ -81,7 +81,57 @@ export class WatchedSerieService {
     }
   }
 
-  async isWatchedSerie(userId: number, idTmdb: number): Promise<boolean> {
+  private toListItem(watched: WatchedSerie): WatchedSerieListItemDto {
+    return {
+      idTmdb: watched.idTmdb,
+      name: watched.serie?.name ?? null,
+      overview: watched.serie?.overview ?? null,
+      posterPath: watched.serie?.posterPath ?? null,
+      firstAirDate: watched.serie?.firstAirDate ?? null,
+      numberOfSeasons: watched.serie?.numberOfSeasons ?? null,
+      voteAverage: watched.serie?.voteAverage ?? null,
+      rating: watched.rating ?? null,
+      watchedAt: watched.watchedAt
+        ? new Date(watched.watchedAt).toISOString()
+        : null,
+      createdAt: new Date(watched.createdAt).toISOString(),
+    };
+  }
+
+  async updateWatchedAt(
+    userId: number,
+    idTmdb: number,
+    watchedAt: string | null,
+  ): Promise<WatchedSerieListItemDto> {
+    if (watchedAt && new Date(watchedAt).getTime() > Date.now()) {
+      throw new HttpException(
+        'A data de assistido não pode estar no futuro',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const watchedSerie = await this.watchedSerieRepository.findOne({
+      where: { user: { id: userId }, idTmdb: idTmdb },
+      relations: { serie: true },
+    });
+
+    if (!watchedSerie) {
+      throw new HttpException(
+        'Série assistida não encontrada',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    watchedSerie.watchedAt = watchedAt ? new Date(watchedAt) : null;
+    await this.watchedSerieRepository.save(watchedSerie);
+
+    return this.toListItem(watchedSerie);
+  }
+
+  async isWatchedSerie(
+    userId: number,
+    idTmdb: number,
+  ): Promise<{ watched: boolean; watchedAt: string | null }> {
     try {
       const watchedSerie = await this.watchedSerieRepository.findOne({
         where: {
@@ -89,7 +139,13 @@ export class WatchedSerieService {
           idTmdb: idTmdb,
         },
       });
-      return watchedSerie ? true : false;
+
+      return {
+        watched: Boolean(watchedSerie),
+        watchedAt: watchedSerie?.watchedAt
+          ? new Date(watchedSerie.watchedAt).toISOString()
+          : null,
+      };
     } catch (error) {
       throw new HttpException(
         `Erro ao verificar se a série foi assistida: ${error.message}`,

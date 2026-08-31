@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -13,6 +14,7 @@ import { IsWatchedSerieDto } from '../dto/is-watched-serie.dto';
 import { GetRateSerieDto } from '../dto/get-rate-serie.dto';
 import { MarkWatchedSerieDto } from '../dto/mark-watched-serie.dto';
 import { RateSerieDto } from '../dto/rate-serie.dto';
+import { UpdateWatchedAtSerieDto } from '../dto/update-watched-at-serie.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 
@@ -40,11 +42,20 @@ export class WatchedSerieController {
     @CurrentUser('id') userId: number,
     @Query() query: IsWatchedSerieDto,
   ) {
-    const watched = await this.watchedSerieService.isWatchedSerie(
+    return this.watchedSerieService.isWatchedSerie(userId, query.idTmdb);
+  }
+
+  @Patch('watchedAt')
+  @HttpCode(HttpStatus.OK)
+  async updateWatchedAt(
+    @CurrentUser('id') userId: number,
+    @Body() body: UpdateWatchedAtSerieDto,
+  ) {
+    return this.watchedSerieService.updateWatchedAt(
       userId,
-      query.idTmdb,
+      body.idTmdb,
+      body.watchedAt ?? null,
     );
-    return { watched };
   }
 
   @Post('rate')

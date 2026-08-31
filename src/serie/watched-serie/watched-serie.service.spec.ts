@@ -91,3 +91,92 @@ describe('WatchedSerieService.rateSerie', () => {
     });
   });
 });
+
+describe('WatchedSerieService.updateWatchedAt', () => {
+  let service: WatchedSerieService;
+  let repository: { findOne: jest.Mock; save: jest.Mock };
+
+  beforeEach(async () => {
+    repository = {
+      findOne: jest.fn(),
+      save: jest.fn(value => Promise.resolve(value)),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchedSerieService,
+        { provide: getRepositoryToken(WatchedSerie), useValue: repository },
+        {
+          provide: CreatedSerieService,
+          useValue: { createSerie: jest.fn(), findSerieByIdTmdb: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchedSerieService);
+  });
+
+  it('busca sempre pelo usuario autenticado, nunca so pelo idTmdb', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.updateWatchedAt(42, 70523, '2024-05-01'),
+    ).rejects.toMatchObject({ status: 404 });
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { user: { id: 42 }, idTmdb: 70523 },
+      relations: { serie: true },
+    });
+  });
+
+  it('nao edita o registro de outro usuario', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.updateWatchedAt(2, 70523, '2024-05-01'),
+    ).rejects.toMatchObject({ status: 404 });
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('aceita null e devolve o item com a data limpa', async () => {
+    repository.findOne.mockResolvedValue({
+      id: 3,
+      idTmdb: 70523,
+      rating: 4,
+      watchedAt: new Date('2024-05-01'),
+      createdAt: new Date('2024-04-01'),
+      serie: {
+        name: 'Dark',
+        overview: 'Sinopse',
+        posterPath: '/poster.jpg',
+        firstAirDate: '2017-12-01',
+        numberOfSeasons: 3,
+        voteAverage: 8.3,
+      },
+    });
+
+    const item = await service.updateWatchedAt(1, 70523, null);
+
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ watchedAt: null }),
+    );
+    expect(item).toMatchObject({
+      idTmdb: 70523,
+      name: 'Dark',
+      watchedAt: null,
+      rating: 4,
+    });
+  });
+
+  it('rejeita data futura', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, idTmdb: 70523 });
+    const future = new Date(Date.now() + 86400000).toISOString();
+
+    await expect(
+      service.updateWatchedAt(1, 70523, future),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+});

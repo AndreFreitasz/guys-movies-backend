@@ -60,6 +60,23 @@ export class WatchedMovieService {
     }
   }
 
+  private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {
+    return {
+      idTmdb: watched.idTmdb,
+      title: watched.idMovie?.title ?? null,
+      overview: watched.idMovie?.overview ?? null,
+      posterPath: watched.idMovie?.posterPath ?? null,
+      releaseDate: watched.idMovie?.releaseDate ?? null,
+      director: watched.idMovie?.director ?? null,
+      voteAverage: watched.idMovie?.voteAverage ?? null,
+      rating: watched.rating ?? null,
+      watchedAt: watched.watchedAt
+        ? new Date(watched.watchedAt).toISOString()
+        : null,
+      createdAt: new Date(watched.createdAt).toISOString(),
+    };
+  }
+
   async listWatchedMovies(userId: number): Promise<WatchedMovieListDto> {
     try {
       const watchedMovies = await this.watchedMovieRepository.find({
@@ -69,20 +86,9 @@ export class WatchedMovieService {
         take: WATCHED_LIST_LIMIT,
       });
 
-      const items: WatchedMovieListItemDto[] = watchedMovies.map(watched => ({
-        idTmdb: watched.idTmdb,
-        title: watched.idMovie?.title ?? null,
-        overview: watched.idMovie?.overview ?? null,
-        posterPath: watched.idMovie?.posterPath ?? null,
-        releaseDate: watched.idMovie?.releaseDate ?? null,
-        director: watched.idMovie?.director ?? null,
-        voteAverage: watched.idMovie?.voteAverage ?? null,
-        rating: watched.rating ?? null,
-        watchedAt: watched.watchedAt
-          ? new Date(watched.watchedAt).toISOString()
-          : null,
-        createdAt: new Date(watched.createdAt).toISOString(),
-      }));
+      const items: WatchedMovieListItemDto[] = watchedMovies.map(watched =>
+        this.toListItem(watched),
+      );
 
       const ratings = items
         .map(item => item.rating)
@@ -140,7 +146,10 @@ export class WatchedMovieService {
     }
   }
 
-  async isWatchedMovie(idUser: number, idTmdb: number): Promise<boolean> {
+  async isWatchedMovie(
+    idUser: number,
+    idTmdb: number,
+  ): Promise<{ watched: boolean; watchedAt: string | null }> {
     try {
       const watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
@@ -148,13 +157,49 @@ export class WatchedMovieService {
           idTmdb: idTmdb,
         },
       });
-      return watchedMovie ? true : false;
+
+      return {
+        watched: Boolean(watchedMovie),
+        watchedAt: watchedMovie?.watchedAt
+          ? new Date(watchedMovie.watchedAt).toISOString()
+          : null,
+      };
     } catch (error) {
       throw new HttpException(
         `Erro ao verificar se o filme foi assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async updateWatchedAt(
+    userId: number,
+    idTmdb: number,
+    watchedAt: string | null,
+  ): Promise<WatchedMovieListItemDto> {
+    if (watchedAt && new Date(watchedAt).getTime() > Date.now()) {
+      throw new HttpException(
+        'A data de assistido não pode estar no futuro',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const watchedMovie = await this.watchedMovieRepository.findOne({
+      where: { idUser: { id: userId }, idTmdb: idTmdb },
+      relations: { idMovie: true },
+    });
+
+    if (!watchedMovie) {
+      throw new HttpException(
+        'Filme assistido não encontrado',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    watchedMovie.watchedAt = watchedAt ? new Date(watchedAt) : null;
+    await this.watchedMovieRepository.save(watchedMovie);
+
+    return this.toListItem(watchedMovie);
   }
 
   async rateMovie(

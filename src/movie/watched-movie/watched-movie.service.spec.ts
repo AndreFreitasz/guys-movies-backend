@@ -91,3 +91,92 @@ describe('WatchedMovieService.rateMovie', () => {
     });
   });
 });
+
+describe('WatchedMovieService.updateWatchedAt', () => {
+  let service: WatchedMovieService;
+  let repository: { findOne: jest.Mock; save: jest.Mock };
+
+  beforeEach(async () => {
+    repository = {
+      findOne: jest.fn(),
+      save: jest.fn(value => Promise.resolve(value)),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchedMovieService,
+        { provide: getRepositoryToken(WatchedMovie), useValue: repository },
+        {
+          provide: CreatedMovieService,
+          useValue: { createMovie: jest.fn(), findMovieByIdTmdb: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchedMovieService);
+  });
+
+  it('busca sempre pelo usuario autenticado, nunca so pelo idTmdb', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.updateWatchedAt(42, 550, '2024-05-01'),
+    ).rejects.toMatchObject({ status: 404 });
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { idUser: { id: 42 }, idTmdb: 550 },
+      relations: { idMovie: true },
+    });
+  });
+
+  it('nao edita o registro de outro usuario', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.updateWatchedAt(2, 550, '2024-05-01'),
+    ).rejects.toMatchObject({ status: 404 });
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('aceita null e devolve o item com a data limpa', async () => {
+    repository.findOne.mockResolvedValue({
+      id: 3,
+      idTmdb: 550,
+      rating: 4,
+      watchedAt: new Date('2024-05-01'),
+      createdAt: new Date('2024-04-01'),
+      idMovie: {
+        title: 'Clube da Luta',
+        overview: 'Sinopse',
+        posterPath: '/poster.jpg',
+        releaseDate: '1999-10-15',
+        director: 'David Fincher',
+        voteAverage: 8.4,
+      },
+    });
+
+    const item = await service.updateWatchedAt(1, 550, null);
+
+    expect(repository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ watchedAt: null }),
+    );
+    expect(item).toMatchObject({
+      idTmdb: 550,
+      title: 'Clube da Luta',
+      watchedAt: null,
+      rating: 4,
+    });
+  });
+
+  it('rejeita data futura', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, idTmdb: 550 });
+    const future = new Date(Date.now() + 86400000).toISOString();
+
+    await expect(service.updateWatchedAt(1, 550, future)).rejects.toMatchObject(
+      { status: 400 },
+    );
+
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+});
