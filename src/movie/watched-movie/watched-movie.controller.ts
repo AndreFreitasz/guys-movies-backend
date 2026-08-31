@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -13,6 +14,7 @@ import { IsWatchedMovieDto } from '../dto/is-watched.dto';
 import { GetRateDto } from '../dto/get-rate.dto';
 import { MarkWatchedMovieDto } from '../dto/mark-watched.dto';
 import { RateMovieDto } from '../dto/rate-movie.dto';
+import { UpdateWatchedAtDto } from '../dto/update-watched-at.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 
@@ -45,11 +47,20 @@ export class WatchedMovieController {
     @CurrentUser('id') userId: number,
     @Query() query: IsWatchedMovieDto,
   ) {
-    const watched = await this.watchedMovieService.isWatchedMovie(
+    return this.watchedMovieService.isWatchedMovie(userId, query.idTmdb);
+  }
+
+  @Patch('watchedAt')
+  @HttpCode(HttpStatus.OK)
+  async updateWatchedAt(
+    @CurrentUser('id') userId: number,
+    @Body() body: UpdateWatchedAtDto,
+  ) {
+    return this.watchedMovieService.updateWatchedAt(
       userId,
-      query.idTmdb,
+      body.idTmdb,
+      body.watchedAt ?? null,
     );
-    return { watched };
   }
 
   @Post('rate')
@@ -58,12 +69,12 @@ export class WatchedMovieController {
     @CurrentUser('id') userId: number,
     @Body() body: RateMovieDto,
   ) {
-    const message = await this.watchedMovieService.rateMovie(
+    return this.watchedMovieService.rateMovie(
       userId,
       body.idTmdb,
       body.rating,
+      body.createMovieDto,
     );
-    return { message };
   }
 
   @Get('getRate')
