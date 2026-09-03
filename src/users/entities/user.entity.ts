@@ -2,6 +2,7 @@ import { WaitingMovies } from 'src/movie/entities/waiting-movie.entity';
 import { WatchedMovie } from 'src/movie/entities/watched-movie.entity';
 import { WaitingSeries } from 'src/serie/entities/waiting-serie.entity';
 import { WatchedSerie } from 'src/serie/entities/watched-serie.entity';
+import { WatchedSeason } from 'src/serie/entities/watched-season.entity';
 import {
   Entity,
   Column,
@@ -44,4 +45,7 @@ export class User {
 
   @OneToMany(() => WaitingSeries, waitingSerie => waitingSerie.user)
   waitingSerie: WaitingSeries[];
+
+  @OneToMany(() => WatchedSeason, watchedSeason => watchedSeason.user)
+  watchedSeasons: WatchedSeason[];
 }

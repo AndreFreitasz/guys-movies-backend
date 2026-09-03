@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { CastDto, ProvidersDto, SerieDto } from './dto/serie.dto';
+import { SeasonDto } from './dto/season.dto';
 import { TtlCache } from '../common/ttl-cache';
 
 const PROVIDER_TYPES = ['flatrate', 'buy', 'rent'] as const;
@@ -50,6 +51,23 @@ export class SerieService {
     return result;
   }
 
+  private mapSeasons(seasons: any): SeasonDto[] {
+    if (!Array.isArray(seasons)) return [];
+
+    return seasons
+      .filter((season: any) => Number(season?.season_number) > 0)
+      .map((season: any) => ({
+        season_number: season.season_number,
+        name: season.name,
+        episode_count: season.episode_count ?? 0,
+        air_date: season.air_date ?? null,
+        poster_path: this.buildImageUrl(
+          this.sizeImagePoster,
+          season.poster_path,
+        ),
+      }));
+  }
+
   private async fetchSerie(idSerie: number): Promise<SerieDto> {
     const url =
       `https://api.themoviedb.org/3/tv/${idSerie}` +
@@ -75,6 +93,10 @@ export class SerieService {
         : [],
       adult: serie.adult,
       number_of_seasons: serie.number_of_seasons,
+      seasons: this.mapSeasons(serie.seasons),
+      episodeRunTime: Array.isArray(serie.episode_run_time)
+        ? (serie.episode_run_time[0] ?? null)
+        : null,
       providers: this.mapProviders(serie['watch/providers']),
       cast: this.mapCast(serie.credits),
       created_by: Array.isArray(serie.created_by)

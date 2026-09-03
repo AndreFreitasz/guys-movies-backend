@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { WatchedSerie } from './watched-serie.entity';
 import { WaitingSeries } from './waiting-serie.entity';
+import { WatchedSeason } from './watched-season.entity';
 
 @Entity()
 export class Series {
@@ -33,4 +34,10 @@ export class Series {
 
   @OneToMany(() => WaitingSeries, waitingSerie => waitingSerie.serie)
   waitingSerie: WaitingSeries[];
+
+  @Column({ type: 'int', nullable: true })
+  episodeRunTime: number;
+
+  @OneToMany(() => WatchedSeason, watchedSeason => watchedSeason.serie)
+  watchedSeasons: WatchedSeason[];
 }

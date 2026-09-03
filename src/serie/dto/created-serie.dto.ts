@@ -37,11 +37,6 @@ export class CreatedSerieDto {
   posterPath?: string | null;
 
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  numberOfSeasons?: number | null;
-
-  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(10)

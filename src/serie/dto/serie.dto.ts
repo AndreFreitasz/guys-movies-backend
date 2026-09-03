@@ -1,3 +1,5 @@
+import { SeasonDto } from './season.dto';
+
 export class SerieDto {
   id: number;
   name: string;
@@ -9,6 +11,8 @@ export class SerieDto {
   genres: string[];
   adult: boolean;
   number_of_seasons: number;
+  seasons: SeasonDto[];
+  episodeRunTime: number | null;
   providers?: ProvidersDto;
   cast?: CastDto[];
   created_by?: CreatorDto[];
