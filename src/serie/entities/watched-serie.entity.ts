@@ -31,6 +31,12 @@ export class WatchedSerie {
   @Column({ type: 'date', nullable: true })
   completedAt: Date;
 
+  @Column({ type: 'int', nullable: true })
+  providerId: number | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  watchSource: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }
