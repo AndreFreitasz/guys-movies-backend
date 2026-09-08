@@ -6,11 +6,13 @@ import { Movies } from '../entities/movies.entity';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { User } from 'src/users/entities/user.entity';
 import { CreatedMovieModule } from '../created-movie/created-movie.module';
+import { MovieModule } from '../movie.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([WatchedMovie, User, Movies]),
     CreatedMovieModule,
+    MovieModule,
   ],
   controllers: [WatchedMovieController],
   providers: [WatchedMovieService],

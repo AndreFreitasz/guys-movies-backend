@@ -5,6 +5,7 @@ import { WatchedMovieService } from './watched-movie.service';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { CreatedMovieService } from '../created-movie/created-movie.service';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
+import { MovieService } from '../movie.service';
 
 const moviePayload: CreatedMovieDto = {
   title: 'Clube da Luta',
@@ -46,6 +47,7 @@ describe('WatchedMovieService.rateMovie', () => {
         WatchedMovieService,
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         { provide: CreatedMovieService, useValue: createdMovieService },
+        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
       ],
     }).compile();
 
@@ -111,6 +113,7 @@ describe('WatchedMovieService.updateWatchedAt', () => {
           provide: CreatedMovieService,
           useValue: { createMovie: jest.fn(), findMovieByIdTmdb: jest.fn() },
         },
+        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
       ],
     }).compile();
 
@@ -203,6 +206,7 @@ describe('WatchedMovieService.setWatchSource', () => {
           provide: CreatedMovieService,
           useValue: { createMovie: jest.fn(), findMovieByIdTmdb: jest.fn() },
         },
+        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
       ],
     }).compile();
 
@@ -266,6 +270,7 @@ describe('WatchedMovieService.markAsWatched', () => {
         WatchedMovieService,
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         { provide: CreatedMovieService, useValue: createdMovieService },
+        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
       ],
     }).compile();
 
@@ -298,5 +303,144 @@ describe('WatchedMovieService.markAsWatched', () => {
     ).rejects.toThrow(BadRequestException);
 
     expect(repository.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('WatchedMovieService.listWatchedMovies', () => {
+  let service: WatchedMovieService;
+  let watchedMovieRepository: { find: jest.Mock };
+  let movieService: { getMovieData: jest.Mock };
+
+  beforeEach(async () => {
+    watchedMovieRepository = {
+      find: jest.fn(),
+    };
+    movieService = {
+      getMovieData: jest.fn(),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchedMovieService,
+        {
+          provide: getRepositoryToken(WatchedMovie),
+          useValue: watchedMovieRepository,
+        },
+        {
+          provide: CreatedMovieService,
+          useValue: { createMovie: jest.fn(), findMovieByIdTmdb: jest.fn() },
+        },
+        { provide: MovieService, useValue: movieService },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchedMovieService);
+  });
+
+  it('declarado vence a disponibilidade', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+    ]);
+
+    const result = await service.listWatchedMovies(1, [384]);
+
+    expect(result.items).toHaveLength(0);
+    expect(movieService.getMovieData).not.toHaveBeenCalled();
+  });
+
+  it('sem declaracao cai no fallback de disponibilidade', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+    ]);
+    movieService.getMovieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 384 }, { id_provider: 8 }] },
+    });
+
+    const result = await service.listWatchedMovies(1, [384]);
+
+    expect(result.items).toHaveLength(1);
+  });
+
+  it('cinema nao casa com filtro de streaming nem cai no fallback', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: null,
+        watchSource: 'cinema',
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+    ]);
+
+    const result = await service.listWatchedMovies(1, [8]);
+
+    expect(result.items).toHaveLength(0);
+    expect(movieService.getMovieData).not.toHaveBeenCalled();
+  });
+
+  it('tmdb fora nao derruba a lista e sinaliza availabilityFailed', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+      {
+        idTmdb: 551,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-02'),
+        idMovie: null,
+      },
+    ]);
+    movieService.getMovieData.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const result = await service.listWatchedMovies(1, [8]);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.availabilityFailed).toBe(true);
+  });
+
+  it('sem providers nao chama a tmdb', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+    ]);
+
+    const result = await service.listWatchedMovies(1);
+
+    expect(movieService.getMovieData).not.toHaveBeenCalled();
+    expect(result.availabilityFailed).toBe(false);
   });
 });

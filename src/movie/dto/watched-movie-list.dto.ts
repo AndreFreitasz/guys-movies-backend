@@ -21,4 +21,5 @@ export class WatchedMovieStatsDto {
 export class WatchedMovieListDto {
   items: WatchedMovieListItemDto[];
   stats: WatchedMovieStatsDto;
+  availabilityFailed: boolean;
 }

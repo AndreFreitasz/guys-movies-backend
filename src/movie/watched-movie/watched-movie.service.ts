@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,15 +18,20 @@ import {
   WatchedMovieListItemDto,
 } from '../dto/watched-movie-list.dto';
 import { WatchSourceDto, WatchSourceValue } from '../dto/watch-source.dto';
+import { MovieService } from '../movie.service';
 
 const WATCHED_LIST_LIMIT = 500;
+const AVAILABILITY_CONCURRENCY = 6;
 
 @Injectable()
 export class WatchedMovieService {
+  private readonly logger = new Logger(WatchedMovieService.name);
+
   constructor(
     @InjectRepository(WatchedMovie)
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     private readonly createdMovieService: CreatedMovieService,
+    private readonly movieService: MovieService,
   ) {}
 
   private assertWatchSource(dto: {
@@ -112,6 +118,55 @@ export class WatchedMovieService {
     await this.watchedMovieRepository.save(watched);
   }
 
+  private async matchesProviders(
+    watched: WatchedMovie,
+    providerIds: number[],
+    failures: { value: boolean },
+  ): Promise<boolean> {
+    if (watched.watchSource === 'streaming') {
+      return providerIds.includes(watched.providerId);
+    }
+
+    if (watched.watchSource != null) {
+      return false;
+    }
+
+    try {
+      const data = await this.movieService.getMovieData(watched.idTmdb);
+      const flatrate = data?.providers?.flatrate ?? [];
+      return flatrate.some(provider =>
+        providerIds.includes(provider.id_provider),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao consultar disponibilidade do filme ${watched.idTmdb}: ${error}`,
+      );
+      failures.value = true;
+      return false;
+    }
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    limit: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+
+    const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
+      (async () => {
+        while (cursor < items.length) {
+          const index = cursor++;
+          results[index] = await worker(items[index]);
+        }
+      })(),
+    );
+
+    await Promise.all(runners);
+    return results;
+  }
+
   private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {
     return {
       idTmdb: watched.idTmdb,
@@ -129,14 +184,30 @@ export class WatchedMovieService {
     };
   }
 
-  async listWatchedMovies(userId: number): Promise<WatchedMovieListDto> {
+  async listWatchedMovies(
+    userId: number,
+    providerIds?: number[],
+  ): Promise<WatchedMovieListDto> {
     try {
-      const watchedMovies = await this.watchedMovieRepository.find({
+      let watchedMovies = await this.watchedMovieRepository.find({
         where: { idUser: { id: userId } },
         relations: { idMovie: true },
         order: { watchedAt: 'DESC', createdAt: 'DESC' },
         take: WATCHED_LIST_LIMIT,
       });
+
+      let availabilityFailed = false;
+
+      if (providerIds?.length) {
+        const failures = { value: false };
+        const flags = await this.runWithConcurrency(
+          watchedMovies,
+          AVAILABILITY_CONCURRENCY,
+          item => this.matchesProviders(item, providerIds, failures),
+        );
+        watchedMovies = watchedMovies.filter((_, index) => flags[index]);
+        availabilityFailed = failures.value;
+      }
 
       const items: WatchedMovieListItemDto[] = watchedMovies.map(watched =>
         this.toListItem(watched),
@@ -168,6 +239,7 @@ export class WatchedMovieService {
             ? watchedDates[watchedDates.length - 1]
             : null,
         },
+        availabilityFailed,
       };
     } catch (error) {
       throw new HttpException(
