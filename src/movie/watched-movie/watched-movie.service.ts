@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { Equal, Repository } from 'typeorm';
@@ -10,6 +16,7 @@ import {
   WatchedMovieListDto,
   WatchedMovieListItemDto,
 } from '../dto/watched-movie-list.dto';
+import { WatchSourceDto, WatchSourceValue } from '../dto/watch-source.dto';
 
 const WATCHED_LIST_LIMIT = 500;
 
@@ -20,6 +27,23 @@ export class WatchedMovieService {
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     private readonly createdMovieService: CreatedMovieService,
   ) {}
+
+  private assertWatchSource(dto: {
+    watchSource?: WatchSourceValue;
+    providerId?: number;
+  }): void {
+    if (dto.watchSource === 'streaming' && dto.providerId == null) {
+      throw new BadRequestException(
+        'providerId e obrigatorio quando watchSource e streaming',
+      );
+    }
+
+    if (dto.watchSource !== 'streaming' && dto.providerId != null) {
+      throw new BadRequestException(
+        'providerId so e aceito quando watchSource e streaming',
+      );
+    }
+  }
 
   async markAsWatched(
     watchedAt: Date,
@@ -44,20 +68,48 @@ export class WatchedMovieService {
         return 'Filme desmarcado com sucesso';
       }
 
+      this.assertWatchSource(createMovieDto);
+
       const watchedMovie = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
         idMovie: { id: movie.id } as Movies,
         watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         idTmdb: createMovieDto.idTmdb,
+        watchSource: createMovieDto.watchSource ?? null,
+        providerId: createMovieDto.providerId ?? null,
       });
       await this.watchedMovieRepository.insert(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `Erro ao marcar o filme como assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async setWatchSource(
+    userId: number,
+    idTmdb: number,
+    dto: WatchSourceDto,
+  ): Promise<void> {
+    const watched = await this.watchedMovieRepository.findOne({
+      where: { idUser: { id: userId }, idTmdb },
+    });
+
+    if (!watched) {
+      throw new NotFoundException('Filme assistido nao encontrado');
+    }
+
+    this.assertWatchSource(dto);
+
+    watched.watchSource = dto.watchSource ?? null;
+    watched.providerId = dto.providerId ?? null;
+
+    await this.watchedMovieRepository.save(watched);
   }
 
   private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {

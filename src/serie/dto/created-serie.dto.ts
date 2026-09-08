@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsInt,
   Matches,
   IsNumber,
@@ -8,6 +9,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import {
+  WATCH_SOURCES,
+  WatchSourceValue,
+} from '../../movie/dto/watch-source.dto';
 
 export class CreatedSerieDto {
   @IsString()
@@ -41,4 +46,13 @@ export class CreatedSerieDto {
   @Min(0)
   @Max(10)
   voteAverage?: number | null;
+
+  @IsOptional()
+  @IsIn(WATCH_SOURCES)
+  watchSource?: WatchSourceValue;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  providerId?: number;
 }

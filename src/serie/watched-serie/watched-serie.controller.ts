@@ -5,6 +5,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -20,6 +22,7 @@ import { UnmarkSeasonDto } from '../dto/unmark-season.dto';
 import { CompleteSerieDto } from '../dto/complete-serie.dto';
 import { RateSerieDto } from '../dto/rate-serie.dto';
 import { UpdateWatchedAtSerieDto } from '../dto/update-watched-at-serie.dto';
+import { WatchSourceDto } from '../../movie/dto/watch-source.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 
@@ -137,5 +140,14 @@ export class WatchedSerieController {
       body.completedAt ?? null,
       body.createSerieDto,
     );
+  }
+
+  @Patch('watchSource/:idTmdb')
+  async setWatchSource(
+    @CurrentUser('id') userId: number,
+    @Param('idTmdb', ParseIntPipe) idTmdb: number,
+    @Body() dto: WatchSourceDto,
+  ): Promise<void> {
+    return this.watchedSerieService.setWatchSource(userId, idTmdb, dto);
   }
 }

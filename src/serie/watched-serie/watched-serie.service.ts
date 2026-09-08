@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedSerie } from '../entities/watched-serie.entity';
 import { WatchedSeason } from '../entities/watched-season.entity';
@@ -13,6 +20,10 @@ import {
   WatchedSerieListDto,
   WatchedSerieListItemDto,
 } from '../dto/watched-serie-list.dto';
+import {
+  WatchSourceDto,
+  WatchSourceValue,
+} from '../../movie/dto/watch-source.dto';
 
 @Injectable()
 export class WatchedSerieService {
@@ -29,6 +40,23 @@ export class WatchedSerieService {
     private readonly serieService: SerieService,
     private readonly watchedSeasonService: WatchedSeasonService,
   ) {}
+
+  private assertWatchSource(dto: {
+    watchSource?: WatchSourceValue;
+    providerId?: number;
+  }): void {
+    if (dto.watchSource === 'streaming' && dto.providerId == null) {
+      throw new BadRequestException(
+        'providerId e obrigatorio quando watchSource e streaming',
+      );
+    }
+
+    if (dto.watchSource !== 'streaming' && dto.providerId != null) {
+      throw new BadRequestException(
+        'providerId so e aceito quando watchSource e streaming',
+      );
+    }
+  }
 
   async markAsWatched(
     watchedAt: Date,
@@ -58,15 +86,23 @@ export class WatchedSerieService {
         await this.destroyWatchedSerie(userId, serie.id);
         return 'Série desmarcada com sucesso';
       }
+
+      this.assertWatchSource(createdSerieDto);
+
       const watchedSerie = this.watchedSerieRepository.create({
         user: { id: userId } as User,
         serie: { id: serie.id } as Series,
         watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         idTmdb: createdSerieDto.idTmdb,
+        watchSource: createdSerieDto.watchSource ?? null,
+        providerId: createdSerieDto.providerId ?? null,
       });
       await this.watchedSerieRepository.insert(watchedSerie);
       return 'Série marcada como assistida com sucesso';
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `Erro ao marcar a série como assistida: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -354,6 +390,27 @@ export class WatchedSerieService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async setWatchSource(
+    userId: number,
+    idTmdb: number,
+    dto: WatchSourceDto,
+  ): Promise<void> {
+    const watched = await this.watchedSerieRepository.findOne({
+      where: { user: { id: userId }, idTmdb },
+    });
+
+    if (!watched) {
+      throw new NotFoundException('Serie assistida nao encontrada');
+    }
+
+    this.assertWatchSource(dto);
+
+    watched.watchSource = dto.watchSource ?? null;
+    watched.providerId = dto.providerId ?? null;
+
+    await this.watchedSerieRepository.save(watched);
   }
 
   async getSerieRating(userId: number, idTmdb: number): Promise<number | null> {

@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WatchedSerieService } from './watched-serie.service';
 import { WatchedSerie } from '../entities/watched-serie.entity';
 import { WatchedSeason } from '../entities/watched-season.entity';
@@ -296,5 +297,153 @@ describe('WatchedSerieService.listWatchedSeries', () => {
     expect(result.items).toHaveLength(1);
     expect(result.items[0].watchedEpisodes).toBe(0);
     expect(result.stats.total).toBe(1);
+  });
+});
+
+describe('WatchedSerieService.setWatchSource', () => {
+  let service: WatchedSerieService;
+  let watchedSerieRepository: { findOne: jest.Mock; save: jest.Mock };
+
+  beforeEach(async () => {
+    watchedSerieRepository = {
+      findOne: jest.fn().mockResolvedValue({ id: 3, idTmdb: 70523 }),
+      save: jest.fn(value => Promise.resolve(value)),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchedSerieService,
+        {
+          provide: getRepositoryToken(WatchedSerie),
+          useValue: watchedSerieRepository,
+        },
+        {
+          provide: getRepositoryToken(WatchedSeason),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
+        {
+          provide: getRepositoryToken(Series),
+          useValue: { save: jest.fn().mockResolvedValue(undefined) },
+        },
+        {
+          provide: CreatedSerieService,
+          useValue: { createSerie: jest.fn(), findSerieByIdTmdb: jest.fn() },
+        },
+        { provide: SerieService, useValue: { getSerieData: jest.fn() } },
+        {
+          provide: WatchedSeasonService,
+          useValue: { completeSerie: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchedSerieService);
+  });
+
+  it('rejeita providerId quando watchSource nao e streaming', async () => {
+    await expect(
+      service.setWatchSource(1, 70523, {
+        watchSource: 'cinema',
+        providerId: 8,
+      }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('rejeita streaming sem providerId', async () => {
+    await expect(
+      service.setWatchSource(1, 70523, { watchSource: 'streaming' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('limpa as duas colunas quando o corpo vem vazio', async () => {
+    await service.setWatchSource(1, 70523, {});
+    expect(watchedSerieRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: null, watchSource: null }),
+    );
+  });
+
+  it('lanca NotFound quando a serie nao esta na estante do usuario', async () => {
+    watchedSerieRepository.findOne.mockResolvedValue(null);
+    await expect(
+      service.setWatchSource(1, 70523, { watchSource: 'cinema' }),
+    ).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('WatchedSerieService.markAsWatched', () => {
+  let service: WatchedSerieService;
+  let repository: {
+    findOne: jest.Mock;
+    create: jest.Mock;
+    insert: jest.Mock;
+    delete: jest.Mock;
+  };
+  let createdSerieService: {
+    createSerie: jest.Mock;
+    findSerieByIdTmdb: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    repository = {
+      findOne: jest.fn(),
+      create: jest.fn(value => value),
+      insert: jest.fn().mockResolvedValue(undefined),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    createdSerieService = {
+      createSerie: jest.fn().mockResolvedValue({ message: 'ok' }),
+      findSerieByIdTmdb: jest.fn().mockResolvedValue({ id: 7 }),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchedSerieService,
+        { provide: getRepositoryToken(WatchedSerie), useValue: repository },
+        {
+          provide: getRepositoryToken(WatchedSeason),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
+        {
+          provide: getRepositoryToken(Series),
+          useValue: { save: jest.fn().mockResolvedValue(undefined) },
+        },
+        { provide: CreatedSerieService, useValue: createdSerieService },
+        { provide: SerieService, useValue: { getSerieData: jest.fn() } },
+        {
+          provide: WatchedSeasonService,
+          useValue: { completeSerie: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchedSerieService);
+  });
+
+  it('desmarca mesmo com combinacao invalida de watchSource e providerId no corpo', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, idTmdb: 70523 });
+
+    const result = await service.markAsWatched(new Date(), 1, {
+      ...seriePayload,
+      watchSource: 'cinema',
+      providerId: 8,
+    });
+
+    expect(result).toBe('Série desmarcada com sucesso');
+    expect(repository.delete).toHaveBeenCalled();
+    expect(repository.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejeita a criacao quando a combinacao de watchSource e providerId e invalida', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.markAsWatched(new Date(), 1, {
+        ...seriePayload,
+        watchSource: 'cinema',
+        providerId: 8,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repository.insert).not.toHaveBeenCalled();
   });
 });

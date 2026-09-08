@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -15,6 +17,7 @@ import { GetRateDto } from '../dto/get-rate.dto';
 import { MarkWatchedMovieDto } from '../dto/mark-watched.dto';
 import { RateMovieDto } from '../dto/rate-movie.dto';
 import { UpdateWatchedAtDto } from '../dto/update-watched-at.dto';
+import { WatchSourceDto } from '../dto/watch-source.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 
@@ -84,5 +87,14 @@ export class WatchedMovieController {
       query.idTmdb,
     );
     return { rate };
+  }
+
+  @Patch('watchSource/:idTmdb')
+  async setWatchSource(
+    @CurrentUser('id') userId: number,
+    @Param('idTmdb', ParseIntPipe) idTmdb: number,
+    @Body() dto: WatchSourceDto,
+  ): Promise<void> {
+    return this.watchedMovieService.setWatchSource(userId, idTmdb, dto);
   }
 }
