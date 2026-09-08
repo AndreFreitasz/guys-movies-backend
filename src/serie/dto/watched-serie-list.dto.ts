@@ -35,4 +35,5 @@ export class WatchedSerieStatsDto {
 export class WatchedSerieListDto {
   items: WatchedSerieListItemDto[];
   stats: WatchedSerieStatsDto;
+  availabilityFailed: boolean;
 }

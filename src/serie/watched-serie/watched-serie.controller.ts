@@ -49,8 +49,18 @@ export class WatchedSerieController {
   }
 
   @Get('list')
-  async list(@CurrentUser('id') userId: number) {
-    return this.watchedSerieService.listWatchedSeries(userId);
+  async list(
+    @CurrentUser('id') userId: number,
+    @Query('providers') providers?: string,
+  ) {
+    const providerIds = providers
+      ? providers
+          .split(',')
+          .map(value => Number.parseInt(value, 10))
+          .filter(value => Number.isInteger(value) && value > 0)
+      : undefined;
+
+    return this.watchedSerieService.listWatchedSeries(userId, providerIds);
   }
 
   @Get('isWatched')

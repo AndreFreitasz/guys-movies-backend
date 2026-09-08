@@ -298,6 +298,124 @@ describe('WatchedSerieService.listWatchedSeries', () => {
     expect(result.items[0].watchedEpisodes).toBe(0);
     expect(result.stats.total).toBe(1);
   });
+
+  it('declarado vence a disponibilidade', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    const result = await service.listWatchedSeries(1, [384]);
+
+    expect(result.items).toHaveLength(0);
+    expect(serieService.getSerieData).not.toHaveBeenCalled();
+  });
+
+  it('sem declaracao cai no fallback de disponibilidade', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+    serieService.getSerieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 384 }, { id_provider: 8 }] },
+    });
+
+    const result = await service.listWatchedSeries(1, [384]);
+
+    expect(result.items).toHaveLength(1);
+  });
+
+  it('cinema nao casa com filtro de streaming nem cai no fallback', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: null,
+        watchSource: 'cinema',
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    const result = await service.listWatchedSeries(1, [8]);
+
+    expect(result.items).toHaveLength(0);
+    expect(serieService.getSerieData).not.toHaveBeenCalled();
+  });
+
+  it('tmdb fora nao derruba a lista e sinaliza availabilityFailed', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+      {
+        idTmdb: 70524,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-02'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+    serieService.getSerieData.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    const result = await service.listWatchedSeries(1, [8]);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.availabilityFailed).toBe(true);
+  });
+
+  it('sem providers nao chama a tmdb', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: null,
+        watchSource: null,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(serieService.getSerieData).not.toHaveBeenCalled();
+    expect(result.availabilityFailed).toBe(false);
+  });
 });
 
 describe('WatchedSerieService.setWatchSource', () => {

@@ -25,6 +25,8 @@ import {
   WatchSourceValue,
 } from '../../movie/dto/watch-source.dto';
 
+const AVAILABILITY_CONCURRENCY = 6;
+
 @Injectable()
 export class WatchedSerieService {
   private readonly logger = new Logger(WatchedSerieService.name);
@@ -131,6 +133,55 @@ export class WatchedSerieService {
     }
   }
 
+  private async matchesProviders(
+    watched: WatchedSerie,
+    providerIds: number[],
+    failures: { value: boolean },
+  ): Promise<boolean> {
+    if (watched.watchSource === 'streaming') {
+      return providerIds.includes(watched.providerId);
+    }
+
+    if (watched.watchSource != null) {
+      return false;
+    }
+
+    try {
+      const data = await this.serieService.getSerieData(watched.idTmdb);
+      const flatrate = data?.providers?.flatrate ?? [];
+      return flatrate.some(provider =>
+        providerIds.includes(provider.id_provider),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao consultar disponibilidade da serie ${watched.idTmdb}: ${error}`,
+      );
+      failures.value = true;
+      return false;
+    }
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    limit: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+
+    const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
+      (async () => {
+        while (cursor < items.length) {
+          const index = cursor++;
+          results[index] = await worker(items[index]);
+        }
+      })(),
+    );
+
+    await Promise.all(runners);
+    return results;
+  }
+
   private toListItem(watched: WatchedSerie): WatchedSerieListItemDto {
     return {
       idTmdb: watched.idTmdb,
@@ -196,12 +247,28 @@ export class WatchedSerieService {
     };
   }
 
-  async listWatchedSeries(userId: number): Promise<WatchedSerieListDto> {
-    const watchedSeries = await this.watchedSerieRepository.find({
+  async listWatchedSeries(
+    userId: number,
+    providerIds?: number[],
+  ): Promise<WatchedSerieListDto> {
+    let watchedSeries = await this.watchedSerieRepository.find({
       where: { user: { id: userId } },
       relations: { serie: true },
       order: { createdAt: 'DESC' },
     });
+
+    let availabilityFailed = false;
+
+    if (providerIds?.length) {
+      const failures = { value: false };
+      const flags = await this.runWithConcurrency(
+        watchedSeries,
+        AVAILABILITY_CONCURRENCY,
+        item => this.matchesProviders(item, providerIds, failures),
+      );
+      watchedSeries = watchedSeries.filter((_, index) => flags[index]);
+      availabilityFailed = failures.value;
+    }
 
     const seasons = await this.watchedSeasonRepository.find({
       where: { user: { id: userId } },
@@ -258,6 +325,7 @@ export class WatchedSerieService {
           : null,
         lastActivityAt: items[0]?.createdAt ?? null,
       },
+      availabilityFailed,
     };
   }
 
