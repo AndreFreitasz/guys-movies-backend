@@ -51,6 +51,33 @@ export class WatchedMovieService {
     }
   }
 
+  private async assertValidProvider(
+    idTmdb: number,
+    providerId: number,
+  ): Promise<void> {
+    let movieData: Awaited<ReturnType<MovieService['getMovieData']>>;
+
+    try {
+      movieData = await this.movieService.getMovieData(idTmdb);
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao validar o providerId declarado para o filme ${idTmdb}, aceitando sem confirmar contra a TMDB: ${error}`,
+      );
+      return;
+    }
+
+    const flatrate = movieData?.providers?.flatrate ?? [];
+    const isKnownProvider = flatrate.some(
+      provider => provider.id_provider === providerId,
+    );
+
+    if (!isKnownProvider) {
+      throw new BadRequestException(
+        'providerId informado nao esta entre os streamings disponiveis para este filme',
+      );
+    }
+  }
+
   async markAsWatched(
     watchedAt: Date,
     userId: number,
@@ -75,6 +102,13 @@ export class WatchedMovieService {
       }
 
       this.assertWatchSource(createMovieDto);
+
+      if (createMovieDto.watchSource === 'streaming') {
+        await this.assertValidProvider(
+          createMovieDto.idTmdb,
+          createMovieDto.providerId,
+        );
+      }
 
       const watchedMovie = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
@@ -111,6 +145,10 @@ export class WatchedMovieService {
     }
 
     this.assertWatchSource(dto);
+
+    if (dto.watchSource === 'streaming') {
+      await this.assertValidProvider(idTmdb, dto.providerId);
+    }
 
     watched.watchSource = dto.watchSource ?? null;
     watched.providerId = dto.providerId ?? null;

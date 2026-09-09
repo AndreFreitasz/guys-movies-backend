@@ -212,12 +212,14 @@ describe('WatchedMovieService.updateWatchedAt', () => {
 describe('WatchedMovieService.setWatchSource', () => {
   let service: WatchedMovieService;
   let watchedMovieRepository: { findOne: jest.Mock; save: jest.Mock };
+  let movieService: { getMovieData: jest.Mock };
 
   beforeEach(async () => {
     watchedMovieRepository = {
       findOne: jest.fn().mockResolvedValue({ id: 3, idTmdb: 550 }),
       save: jest.fn(value => Promise.resolve(value)),
     };
+    movieService = { getMovieData: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -230,7 +232,7 @@ describe('WatchedMovieService.setWatchSource', () => {
           provide: CreatedMovieService,
           useValue: { createMovie: jest.fn(), findMovieByIdTmdb: jest.fn() },
         },
-        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
+        { provide: MovieService, useValue: movieService },
       ],
     }).compile();
 
@@ -262,6 +264,49 @@ describe('WatchedMovieService.setWatchSource', () => {
       service.setWatchSource(1, 550, { watchSource: 'cinema' }),
     ).rejects.toThrow(NotFoundException);
   });
+
+  it('rejeita providerId que nao esta entre os streamings reais do filme', async () => {
+    movieService.getMovieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }, { id_provider: 337 }] },
+    });
+
+    await expect(
+      service.setWatchSource(1, 550, {
+        watchSource: 'streaming',
+        providerId: 1899,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(watchedMovieRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('aceita providerId presente na flatrate real do filme', async () => {
+    movieService.getMovieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }, { id_provider: 337 }] },
+    });
+
+    await service.setWatchSource(1, 550, {
+      watchSource: 'streaming',
+      providerId: 8,
+    });
+
+    expect(watchedMovieRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 8, watchSource: 'streaming' }),
+    );
+  });
+
+  it('nao bloqueia a declaracao quando a tmdb esta fora do ar', async () => {
+    movieService.getMovieData.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    await service.setWatchSource(1, 550, {
+      watchSource: 'streaming',
+      providerId: 8,
+    });
+
+    expect(watchedMovieRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 8, watchSource: 'streaming' }),
+    );
+  });
 });
 
 describe('WatchedMovieService.markAsWatched', () => {
@@ -276,6 +321,7 @@ describe('WatchedMovieService.markAsWatched', () => {
     createMovie: jest.Mock;
     findMovieByIdTmdb: jest.Mock;
   };
+  let movieService: { getMovieData: jest.Mock };
 
   beforeEach(async () => {
     repository = {
@@ -288,17 +334,35 @@ describe('WatchedMovieService.markAsWatched', () => {
       createMovie: jest.fn().mockResolvedValue({ message: 'ok' }),
       findMovieByIdTmdb: jest.fn().mockResolvedValue({ id: 7 }),
     };
+    movieService = { getMovieData: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedMovieService,
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         { provide: CreatedMovieService, useValue: createdMovieService },
-        { provide: MovieService, useValue: { getMovieData: jest.fn() } },
+        { provide: MovieService, useValue: movieService },
       ],
     }).compile();
 
     service = moduleRef.get(WatchedMovieService);
+  });
+
+  it('rejeita a declaracao de streaming na criacao quando o providerId nao e real', async () => {
+    repository.findOne.mockResolvedValue(null);
+    movieService.getMovieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }] },
+    });
+
+    await expect(
+      service.markAsWatched(new Date(), 1, {
+        ...moviePayload,
+        watchSource: 'streaming',
+        providerId: 1899,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repository.insert).not.toHaveBeenCalled();
   });
 
   it('desmarca mesmo com combinacao invalida de watchSource e providerId no corpo', async () => {

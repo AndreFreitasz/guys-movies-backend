@@ -462,12 +462,14 @@ describe('WatchedSerieService.listWatchedSeries', () => {
 describe('WatchedSerieService.setWatchSource', () => {
   let service: WatchedSerieService;
   let watchedSerieRepository: { findOne: jest.Mock; save: jest.Mock };
+  let serieService: { getSerieData: jest.Mock };
 
   beforeEach(async () => {
     watchedSerieRepository = {
       findOne: jest.fn().mockResolvedValue({ id: 3, idTmdb: 70523 }),
       save: jest.fn(value => Promise.resolve(value)),
     };
+    serieService = { getSerieData: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -488,7 +490,7 @@ describe('WatchedSerieService.setWatchSource', () => {
           provide: CreatedSerieService,
           useValue: { createSerie: jest.fn(), findSerieByIdTmdb: jest.fn() },
         },
-        { provide: SerieService, useValue: { getSerieData: jest.fn() } },
+        { provide: SerieService, useValue: serieService },
         {
           provide: WatchedSeasonService,
           useValue: { completeSerie: jest.fn() },
@@ -527,6 +529,49 @@ describe('WatchedSerieService.setWatchSource', () => {
       service.setWatchSource(1, 70523, { watchSource: 'cinema' }),
     ).rejects.toThrow(NotFoundException);
   });
+
+  it('rejeita providerId que nao esta entre os streamings reais da serie', async () => {
+    serieService.getSerieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }, { id_provider: 337 }] },
+    });
+
+    await expect(
+      service.setWatchSource(1, 70523, {
+        watchSource: 'streaming',
+        providerId: 1899,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(watchedSerieRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('aceita providerId presente na flatrate real da serie', async () => {
+    serieService.getSerieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }, { id_provider: 337 }] },
+    });
+
+    await service.setWatchSource(1, 70523, {
+      watchSource: 'streaming',
+      providerId: 8,
+    });
+
+    expect(watchedSerieRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 8, watchSource: 'streaming' }),
+    );
+  });
+
+  it('nao bloqueia a declaracao quando a tmdb esta fora do ar', async () => {
+    serieService.getSerieData.mockRejectedValue(new Error('ECONNREFUSED'));
+
+    await service.setWatchSource(1, 70523, {
+      watchSource: 'streaming',
+      providerId: 8,
+    });
+
+    expect(watchedSerieRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ providerId: 8, watchSource: 'streaming' }),
+    );
+  });
 });
 
 describe('WatchedSerieService.markAsWatched', () => {
@@ -541,6 +586,7 @@ describe('WatchedSerieService.markAsWatched', () => {
     createSerie: jest.Mock;
     findSerieByIdTmdb: jest.Mock;
   };
+  let serieService: { getSerieData: jest.Mock };
 
   beforeEach(async () => {
     repository = {
@@ -553,6 +599,7 @@ describe('WatchedSerieService.markAsWatched', () => {
       createSerie: jest.fn().mockResolvedValue({ message: 'ok' }),
       findSerieByIdTmdb: jest.fn().mockResolvedValue({ id: 7 }),
     };
+    serieService = { getSerieData: jest.fn() };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -567,7 +614,7 @@ describe('WatchedSerieService.markAsWatched', () => {
           useValue: { save: jest.fn().mockResolvedValue(undefined) },
         },
         { provide: CreatedSerieService, useValue: createdSerieService },
-        { provide: SerieService, useValue: { getSerieData: jest.fn() } },
+        { provide: SerieService, useValue: serieService },
         {
           provide: WatchedSeasonService,
           useValue: { completeSerie: jest.fn() },
@@ -576,6 +623,23 @@ describe('WatchedSerieService.markAsWatched', () => {
     }).compile();
 
     service = moduleRef.get(WatchedSerieService);
+  });
+
+  it('rejeita a declaracao de streaming na criacao quando o providerId nao e real', async () => {
+    repository.findOne.mockResolvedValue(null);
+    serieService.getSerieData.mockResolvedValue({
+      providers: { flatrate: [{ id_provider: 8 }] },
+    });
+
+    await expect(
+      service.markAsWatched(new Date(), 1, {
+        ...seriePayload,
+        watchSource: 'streaming',
+        providerId: 1899,
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(repository.insert).not.toHaveBeenCalled();
   });
 
   it('desmarca mesmo com combinacao invalida de watchSource e providerId no corpo', async () => {

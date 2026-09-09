@@ -60,6 +60,33 @@ export class WatchedSerieService {
     }
   }
 
+  private async assertValidProvider(
+    idTmdb: number,
+    providerId: number,
+  ): Promise<void> {
+    let serieData: Awaited<ReturnType<SerieService['getSerieData']>>;
+
+    try {
+      serieData = await this.serieService.getSerieData(idTmdb);
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao validar o providerId declarado para a serie ${idTmdb}, aceitando sem confirmar contra a TMDB: ${error}`,
+      );
+      return;
+    }
+
+    const flatrate = serieData?.providers?.flatrate ?? [];
+    const isKnownProvider = flatrate.some(
+      provider => provider.id_provider === providerId,
+    );
+
+    if (!isKnownProvider) {
+      throw new BadRequestException(
+        'providerId informado nao esta entre os streamings disponiveis para esta serie',
+      );
+    }
+  }
+
   async markAsWatched(
     watchedAt: Date,
     userId: number,
@@ -90,6 +117,13 @@ export class WatchedSerieService {
       }
 
       this.assertWatchSource(createdSerieDto);
+
+      if (createdSerieDto.watchSource === 'streaming') {
+        await this.assertValidProvider(
+          createdSerieDto.idTmdb,
+          createdSerieDto.providerId,
+        );
+      }
 
       const watchedSerie = this.watchedSerieRepository.create({
         user: { id: userId } as User,
@@ -476,6 +510,10 @@ export class WatchedSerieService {
     }
 
     this.assertWatchSource(dto);
+
+    if (dto.watchSource === 'streaming') {
+      await this.assertValidProvider(idTmdb, dto.providerId);
+    }
 
     watched.watchSource = dto.watchSource ?? null;
     watched.providerId = dto.providerId ?? null;
