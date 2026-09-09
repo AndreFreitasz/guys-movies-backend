@@ -9,6 +9,8 @@ export class WatchedMovieListItemDto {
   rating: number | null;
   watchedAt: string | null;
   createdAt: string;
+  providerId: number | null;
+  watchSource: string | null;
 }
 
 export class WatchedMovieStatsDto {
@@ -21,4 +23,5 @@ export class WatchedMovieStatsDto {
 export class WatchedMovieListDto {
   items: WatchedMovieListItemDto[];
   stats: WatchedMovieStatsDto;
+  availabilityFailed: boolean;
 }

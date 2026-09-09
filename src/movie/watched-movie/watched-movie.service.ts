@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { Equal, Repository } from 'typeorm';
@@ -10,16 +17,66 @@ import {
   WatchedMovieListDto,
   WatchedMovieListItemDto,
 } from '../dto/watched-movie-list.dto';
+import { WatchSourceDto, WatchSourceValue } from '../dto/watch-source.dto';
+import { MovieService } from '../movie.service';
 
 const WATCHED_LIST_LIMIT = 500;
+const AVAILABILITY_CONCURRENCY = 6;
 
 @Injectable()
 export class WatchedMovieService {
+  private readonly logger = new Logger(WatchedMovieService.name);
+
   constructor(
     @InjectRepository(WatchedMovie)
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     private readonly createdMovieService: CreatedMovieService,
+    private readonly movieService: MovieService,
   ) {}
+
+  private assertWatchSource(dto: {
+    watchSource?: WatchSourceValue;
+    providerId?: number;
+  }): void {
+    if (dto.watchSource === 'streaming' && dto.providerId == null) {
+      throw new BadRequestException(
+        'providerId e obrigatorio quando watchSource e streaming',
+      );
+    }
+
+    if (dto.watchSource !== 'streaming' && dto.providerId != null) {
+      throw new BadRequestException(
+        'providerId so e aceito quando watchSource e streaming',
+      );
+    }
+  }
+
+  private async assertValidProvider(
+    idTmdb: number,
+    providerId: number,
+  ): Promise<void> {
+    let movieData: Awaited<ReturnType<MovieService['getMovieData']>>;
+
+    try {
+      movieData = await this.movieService.getMovieData(idTmdb);
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao validar o providerId declarado para o filme ${idTmdb}, aceitando sem confirmar contra a TMDB: ${error}`,
+      );
+      return;
+    }
+
+    const flatrate = movieData?.providers?.flatrate ?? [];
+    const isKnownProvider = flatrate.some(
+      provider => provider.id_provider === providerId,
+    );
+
+    if (!isKnownProvider) {
+      throw new BadRequestException(
+        'providerId informado nao esta entre os streamings disponiveis para este filme',
+      );
+    }
+  }
 
   async markAsWatched(
     watchedAt: Date,
@@ -44,20 +101,108 @@ export class WatchedMovieService {
         return 'Filme desmarcado com sucesso';
       }
 
+      this.assertWatchSource(createMovieDto);
+
+      if (createMovieDto.watchSource === 'streaming') {
+        await this.assertValidProvider(
+          createMovieDto.idTmdb,
+          createMovieDto.providerId,
+        );
+      }
+
       const watchedMovie = this.watchedMovieRepository.create({
         idUser: { id: userId } as User,
         idMovie: { id: movie.id } as Movies,
         watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         idTmdb: createMovieDto.idTmdb,
+        watchSource: createMovieDto.watchSource ?? null,
+        providerId: createMovieDto.providerId ?? null,
       });
       await this.watchedMovieRepository.insert(watchedMovie);
       return 'Filme marcado como assistido com sucesso';
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `Erro ao marcar o filme como assistido: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async setWatchSource(
+    userId: number,
+    idTmdb: number,
+    dto: WatchSourceDto,
+  ): Promise<void> {
+    const watched = await this.watchedMovieRepository.findOne({
+      where: { idUser: { id: userId }, idTmdb },
+    });
+
+    if (!watched) {
+      throw new NotFoundException('Filme assistido nao encontrado');
+    }
+
+    this.assertWatchSource(dto);
+
+    if (dto.watchSource === 'streaming') {
+      await this.assertValidProvider(idTmdb, dto.providerId);
+    }
+
+    watched.watchSource = dto.watchSource ?? null;
+    watched.providerId = dto.providerId ?? null;
+
+    await this.watchedMovieRepository.save(watched);
+  }
+
+  private async matchesProviders(
+    watched: WatchedMovie,
+    providerIds: number[],
+    failures: { value: boolean },
+  ): Promise<boolean> {
+    if (watched.watchSource === 'streaming') {
+      return providerIds.includes(watched.providerId);
+    }
+
+    if (watched.watchSource != null) {
+      return false;
+    }
+
+    try {
+      const data = await this.movieService.getMovieData(watched.idTmdb);
+      const flatrate = data?.providers?.flatrate ?? [];
+      return flatrate.some(provider =>
+        providerIds.includes(provider.id_provider),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao consultar disponibilidade do filme ${watched.idTmdb}: ${error}`,
+      );
+      failures.value = true;
+      return false;
+    }
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    limit: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+
+    const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
+      (async () => {
+        while (cursor < items.length) {
+          const index = cursor++;
+          results[index] = await worker(items[index]);
+        }
+      })(),
+    );
+
+    await Promise.all(runners);
+    return results;
   }
 
   private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {
@@ -74,17 +219,35 @@ export class WatchedMovieService {
         ? new Date(watched.watchedAt).toISOString()
         : null,
       createdAt: new Date(watched.createdAt).toISOString(),
+      providerId: watched.providerId ?? null,
+      watchSource: watched.watchSource ?? null,
     };
   }
 
-  async listWatchedMovies(userId: number): Promise<WatchedMovieListDto> {
+  async listWatchedMovies(
+    userId: number,
+    providerIds?: number[],
+  ): Promise<WatchedMovieListDto> {
     try {
-      const watchedMovies = await this.watchedMovieRepository.find({
+      let watchedMovies = await this.watchedMovieRepository.find({
         where: { idUser: { id: userId } },
         relations: { idMovie: true },
         order: { watchedAt: 'DESC', createdAt: 'DESC' },
         take: WATCHED_LIST_LIMIT,
       });
+
+      let availabilityFailed = false;
+
+      if (providerIds?.length) {
+        const failures = { value: false };
+        const flags = await this.runWithConcurrency(
+          watchedMovies,
+          AVAILABILITY_CONCURRENCY,
+          item => this.matchesProviders(item, providerIds, failures),
+        );
+        watchedMovies = watchedMovies.filter((_, index) => flags[index]);
+        availabilityFailed = failures.value;
+      }
 
       const items: WatchedMovieListItemDto[] = watchedMovies.map(watched =>
         this.toListItem(watched),
@@ -116,6 +279,7 @@ export class WatchedMovieService {
             ? watchedDates[watchedDates.length - 1]
             : null,
         },
+        availabilityFailed,
       };
     } catch (error) {
       throw new HttpException(

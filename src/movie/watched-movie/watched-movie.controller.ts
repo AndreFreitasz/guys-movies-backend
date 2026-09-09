@@ -4,6 +4,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -15,6 +17,8 @@ import { GetRateDto } from '../dto/get-rate.dto';
 import { MarkWatchedMovieDto } from '../dto/mark-watched.dto';
 import { RateMovieDto } from '../dto/rate-movie.dto';
 import { UpdateWatchedAtDto } from '../dto/update-watched-at.dto';
+import { WatchSourceDto } from '../dto/watch-source.dto';
+import { WatchedMovieListDto } from '../dto/watched-movie-list.dto';
 import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../auth/current-user.decorator';
 
@@ -38,8 +42,18 @@ export class WatchedMovieController {
   }
 
   @Get('list')
-  async listWatched(@CurrentUser('id') userId: number) {
-    return this.watchedMovieService.listWatchedMovies(userId);
+  async listWatched(
+    @CurrentUser('id') userId: number,
+    @Query('providers') providers?: string,
+  ): Promise<WatchedMovieListDto> {
+    const providerIds = providers
+      ? providers
+          .split(',')
+          .map(value => Number.parseInt(value, 10))
+          .filter(value => Number.isInteger(value) && value > 0)
+      : undefined;
+
+    return this.watchedMovieService.listWatchedMovies(userId, providerIds);
   }
 
   @Get('isWatched')
@@ -84,5 +98,14 @@ export class WatchedMovieController {
       query.idTmdb,
     );
     return { rate };
+  }
+
+  @Patch('watchSource/:idTmdb')
+  async setWatchSource(
+    @CurrentUser('id') userId: number,
+    @Param('idTmdb', ParseIntPipe) idTmdb: number,
+    @Body() dto: WatchSourceDto,
+  ): Promise<void> {
+    return this.watchedMovieService.setWatchSource(userId, idTmdb, dto);
   }
 }

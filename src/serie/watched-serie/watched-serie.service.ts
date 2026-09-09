@@ -1,4 +1,11 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { WatchedSerie } from '../entities/watched-serie.entity';
 import { WatchedSeason } from '../entities/watched-season.entity';
@@ -13,6 +20,12 @@ import {
   WatchedSerieListDto,
   WatchedSerieListItemDto,
 } from '../dto/watched-serie-list.dto';
+import {
+  WatchSourceDto,
+  WatchSourceValue,
+} from '../../movie/dto/watch-source.dto';
+
+const AVAILABILITY_CONCURRENCY = 6;
 
 @Injectable()
 export class WatchedSerieService {
@@ -29,6 +42,50 @@ export class WatchedSerieService {
     private readonly serieService: SerieService,
     private readonly watchedSeasonService: WatchedSeasonService,
   ) {}
+
+  private assertWatchSource(dto: {
+    watchSource?: WatchSourceValue;
+    providerId?: number;
+  }): void {
+    if (dto.watchSource === 'streaming' && dto.providerId == null) {
+      throw new BadRequestException(
+        'providerId e obrigatorio quando watchSource e streaming',
+      );
+    }
+
+    if (dto.watchSource !== 'streaming' && dto.providerId != null) {
+      throw new BadRequestException(
+        'providerId so e aceito quando watchSource e streaming',
+      );
+    }
+  }
+
+  private async assertValidProvider(
+    idTmdb: number,
+    providerId: number,
+  ): Promise<void> {
+    let serieData: Awaited<ReturnType<SerieService['getSerieData']>>;
+
+    try {
+      serieData = await this.serieService.getSerieData(idTmdb);
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao validar o providerId declarado para a serie ${idTmdb}, aceitando sem confirmar contra a TMDB: ${error}`,
+      );
+      return;
+    }
+
+    const flatrate = serieData?.providers?.flatrate ?? [];
+    const isKnownProvider = flatrate.some(
+      provider => provider.id_provider === providerId,
+    );
+
+    if (!isKnownProvider) {
+      throw new BadRequestException(
+        'providerId informado nao esta entre os streamings disponiveis para esta serie',
+      );
+    }
+  }
 
   async markAsWatched(
     watchedAt: Date,
@@ -58,15 +115,30 @@ export class WatchedSerieService {
         await this.destroyWatchedSerie(userId, serie.id);
         return 'Série desmarcada com sucesso';
       }
+
+      this.assertWatchSource(createdSerieDto);
+
+      if (createdSerieDto.watchSource === 'streaming') {
+        await this.assertValidProvider(
+          createdSerieDto.idTmdb,
+          createdSerieDto.providerId,
+        );
+      }
+
       const watchedSerie = this.watchedSerieRepository.create({
         user: { id: userId } as User,
         serie: { id: serie.id } as Series,
         watchedAt: watchedAt ? new Date(watchedAt) : undefined,
         idTmdb: createdSerieDto.idTmdb,
+        watchSource: createdSerieDto.watchSource ?? null,
+        providerId: createdSerieDto.providerId ?? null,
       });
       await this.watchedSerieRepository.insert(watchedSerie);
       return 'Série marcada como assistida com sucesso';
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         `Erro ao marcar a série como assistida: ${error.message}`,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -95,6 +167,55 @@ export class WatchedSerieService {
     }
   }
 
+  private async matchesProviders(
+    watched: WatchedSerie,
+    providerIds: number[],
+    failures: { value: boolean },
+  ): Promise<boolean> {
+    if (watched.watchSource === 'streaming') {
+      return providerIds.includes(watched.providerId);
+    }
+
+    if (watched.watchSource != null) {
+      return false;
+    }
+
+    try {
+      const data = await this.serieService.getSerieData(watched.idTmdb);
+      const flatrate = data?.providers?.flatrate ?? [];
+      return flatrate.some(provider =>
+        providerIds.includes(provider.id_provider),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao consultar disponibilidade da serie ${watched.idTmdb}: ${error}`,
+      );
+      failures.value = true;
+      return false;
+    }
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    limit: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<R[]> {
+    const results: R[] = new Array(items.length);
+    let cursor = 0;
+
+    const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
+      (async () => {
+        while (cursor < items.length) {
+          const index = cursor++;
+          results[index] = await worker(items[index]);
+        }
+      })(),
+    );
+
+    await Promise.all(runners);
+    return results;
+  }
+
   private toListItem(watched: WatchedSerie): WatchedSerieListItemDto {
     return {
       idTmdb: watched.idTmdb,
@@ -115,6 +236,8 @@ export class WatchedSerieService {
       watchedSeasons: 0,
       watchedEpisodes: 0,
       episodeRunTime: watched.serie?.episodeRunTime ?? null,
+      providerId: watched.providerId ?? null,
+      watchSource: watched.watchSource ?? null,
     };
   }
 
@@ -160,12 +283,28 @@ export class WatchedSerieService {
     };
   }
 
-  async listWatchedSeries(userId: number): Promise<WatchedSerieListDto> {
-    const watchedSeries = await this.watchedSerieRepository.find({
+  async listWatchedSeries(
+    userId: number,
+    providerIds?: number[],
+  ): Promise<WatchedSerieListDto> {
+    let watchedSeries = await this.watchedSerieRepository.find({
       where: { user: { id: userId } },
       relations: { serie: true },
       order: { createdAt: 'DESC' },
     });
+
+    let availabilityFailed = false;
+
+    if (providerIds?.length) {
+      const failures = { value: false };
+      const flags = await this.runWithConcurrency(
+        watchedSeries,
+        AVAILABILITY_CONCURRENCY,
+        item => this.matchesProviders(item, providerIds, failures),
+      );
+      watchedSeries = watchedSeries.filter((_, index) => flags[index]);
+      availabilityFailed = failures.value;
+    }
 
     const seasons = await this.watchedSeasonRepository.find({
       where: { user: { id: userId } },
@@ -222,6 +361,7 @@ export class WatchedSerieService {
           : null,
         lastActivityAt: items[0]?.createdAt ?? null,
       },
+      availabilityFailed,
     };
   }
 
@@ -354,6 +494,31 @@ export class WatchedSerieService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async setWatchSource(
+    userId: number,
+    idTmdb: number,
+    dto: WatchSourceDto,
+  ): Promise<void> {
+    const watched = await this.watchedSerieRepository.findOne({
+      where: { user: { id: userId }, idTmdb },
+    });
+
+    if (!watched) {
+      throw new NotFoundException('Serie assistida nao encontrada');
+    }
+
+    this.assertWatchSource(dto);
+
+    if (dto.watchSource === 'streaming') {
+      await this.assertValidProvider(idTmdb, dto.providerId);
+    }
+
+    watched.watchSource = dto.watchSource ?? null;
+    watched.providerId = dto.providerId ?? null;
+
+    await this.watchedSerieRepository.save(watched);
   }
 
   async getSerieRating(userId: number, idTmdb: number): Promise<number | null> {
