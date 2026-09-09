@@ -19,6 +19,7 @@ import { WatchedSerieModule } from 'src/serie/watched-serie/watched-serie.module
 import { WaitingSerieModule } from 'src/serie/waiting-serie/waiting-serie.module';
 import { CreatedSerieModule } from 'src/serie/created-serie/created-serie.module';
 import { SearchModule } from 'src/search/search.module';
+import { UserLibraryModule } from 'src/user-library/user-library.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
@@ -91,6 +92,7 @@ dotenv.config();
     WaitingSerieModule,
     CreatedSerieModule,
     SearchModule,
+    UserLibraryModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
