@@ -183,6 +183,30 @@ describe('WatchedMovieService.updateWatchedAt', () => {
 
     expect(repository.save).not.toHaveBeenCalled();
   });
+
+  it('propaga providerId e watchSource no item devolvido (toListItem)', async () => {
+    repository.findOne.mockResolvedValue({
+      id: 3,
+      idTmdb: 550,
+      rating: 4,
+      watchedAt: new Date('2024-05-01'),
+      createdAt: new Date('2024-04-01'),
+      providerId: 8,
+      watchSource: 'streaming',
+      idMovie: {
+        title: 'Clube da Luta',
+        overview: 'Sinopse',
+        posterPath: '/poster.jpg',
+        releaseDate: '1999-10-15',
+        director: 'David Fincher',
+        voteAverage: 8.4,
+      },
+    });
+
+    const item = await service.updateWatchedAt(1, 550, '2024-05-01');
+
+    expect(item).toMatchObject({ providerId: 8, watchSource: 'streaming' });
+  });
 });
 
 describe('WatchedMovieService.setWatchSource', () => {
@@ -442,5 +466,26 @@ describe('WatchedMovieService.listWatchedMovies', () => {
 
     expect(movieService.getMovieData).not.toHaveBeenCalled();
     expect(result.availabilityFailed).toBe(false);
+  });
+
+  it('devolve providerId e watchSource no item da lista (toListItem)', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 550,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        createdAt: new Date('2024-01-01'),
+        idMovie: null,
+      },
+    ]);
+
+    const result = await service.listWatchedMovies(1);
+
+    expect(result.items[0]).toMatchObject({
+      providerId: 8,
+      watchSource: 'streaming',
+    });
   });
 });

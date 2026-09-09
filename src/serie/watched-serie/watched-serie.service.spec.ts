@@ -231,6 +231,24 @@ describe('WatchedSerieService.updateWatchedAt', () => {
 
     expect(repository.save).not.toHaveBeenCalled();
   });
+
+  it('propaga providerId e watchSource no item devolvido (buildListItem)', async () => {
+    repository.findOne.mockResolvedValue({
+      idTmdb: 70523,
+      rating: 4,
+      watchedAt: new Date('2024-05-01'),
+      completedAt: null,
+      createdAt: new Date('2024-04-01'),
+      providerId: 8,
+      watchSource: 'streaming',
+      serie: { name: 'Dark', numberOfSeasons: 3, episodeRunTime: 60 },
+    });
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    const item = await service.updateWatchedAt(1, 70523, '2024-05-01');
+
+    expect(item).toMatchObject({ providerId: 8, watchSource: 'streaming' });
+  });
 });
 
 describe('WatchedSerieService.listWatchedSeries', () => {
@@ -415,6 +433,29 @@ describe('WatchedSerieService.listWatchedSeries', () => {
 
     expect(serieService.getSerieData).not.toHaveBeenCalled();
     expect(result.availabilityFailed).toBe(false);
+  });
+
+  it('devolve providerId e watchSource no item da lista (buildListItem)', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        providerId: 8,
+        watchSource: 'streaming',
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2024-01-01'),
+        serie: null,
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(result.items[0]).toMatchObject({
+      providerId: 8,
+      watchSource: 'streaming',
+    });
   });
 });
 

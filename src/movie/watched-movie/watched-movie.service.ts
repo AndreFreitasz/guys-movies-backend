@@ -181,6 +181,8 @@ export class WatchedMovieService {
         ? new Date(watched.watchedAt).toISOString()
         : null,
       createdAt: new Date(watched.createdAt).toISOString(),
+      providerId: watched.providerId ?? null,
+      watchSource: watched.watchSource ?? null,
     };
   }
 

@@ -13,6 +13,8 @@ export class WatchedSerieListItemDto {
   watchedSeasons: number;
   watchedEpisodes: number;
   episodeRunTime: number | null;
+  providerId: number | null;
+  watchSource: string | null;
 }
 
 export class SeasonProgressDto {

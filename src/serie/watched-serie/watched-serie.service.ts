@@ -202,6 +202,8 @@ export class WatchedSerieService {
       watchedSeasons: 0,
       watchedEpisodes: 0,
       episodeRunTime: watched.serie?.episodeRunTime ?? null,
+      providerId: watched.providerId ?? null,
+      watchSource: watched.watchSource ?? null,
     };
   }
 
