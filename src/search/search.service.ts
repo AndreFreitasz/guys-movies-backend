@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MoviesService } from '../movies/movies.service';
 import { SeriesService } from '../series/series.service';
 import { SearchResult } from './interfaces/search-result.interface';
+import { matchLayer, normalizeForMatch } from './relevance';
 
 @Injectable()
 export class SearchService {
@@ -11,6 +12,8 @@ export class SearchService {
   ) {}
 
   async searchAll(query: string): Promise<SearchResult[]> {
+    if (normalizeForMatch(query ?? '').length === 0) return [];
+
     const [movies, series] = await Promise.all([
       this.moviesService.searchMovies(query),
       this.seriesService.searchSeries(query),
@@ -42,6 +45,11 @@ export class SearchService {
 
     const allResults = [...movieResults, ...serieResults];
 
-    return allResults.sort((a, b) => b.popularity - a.popularity);
+    return allResults.sort((a, b) => {
+      const layerDifference =
+        matchLayer(a.title, query) - matchLayer(b.title, query);
+      if (layerDifference !== 0) return layerDifference;
+      return b.popularity - a.popularity;
+    });
   }
 }
