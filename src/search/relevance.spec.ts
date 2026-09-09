@@ -28,6 +28,18 @@ describe('matchLayer', () => {
     expect(matchLayer('A Herança de Duna', 'duna')).toBe(3);
   });
 
+  it('camada 3 para o termo entre parenteses', () => {
+    expect(matchLayer('A Origem (Duna)', 'duna')).toBe(3);
+  });
+
+  it('camada 3 para o termo precedido de virgula colada', () => {
+    expect(matchLayer('Ação,Duna e Aventura', 'duna')).toBe(3);
+  });
+
+  it('camada 3 para o termo seguido de exclamacao', () => {
+    expect(matchLayer('Bem-vinda, Duna!', 'duna')).toBe(3);
+  });
+
   it('camada 4 para o termo colado em outra palavra', () => {
     expect(matchLayer('Dunas do Tempo', 'duna')).toBe(4);
   });

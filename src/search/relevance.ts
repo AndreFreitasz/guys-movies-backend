@@ -9,7 +9,12 @@ export const normalizeForMatch = (value: string): string =>
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const isWordChar = (character: string): boolean => /[a-z0-9]/.test(character);
+const WORD_CHARACTER_CLASS = 'a-z0-9';
+const WORD_CHAR_REGEX = new RegExp(`[${WORD_CHARACTER_CLASS}]`);
+const NON_WORD_CHAR_CLASS = `[^${WORD_CHARACTER_CLASS}]`;
+
+const isWordChar = (character: string): boolean =>
+  WORD_CHAR_REGEX.test(character);
 
 export const matchLayer = (title: string, query: string): number => {
   const normalizedTitle = normalizeForMatch(title ?? '');
@@ -24,7 +29,7 @@ export const matchLayer = (title: string, query: string): number => {
   }
 
   const wordBoundary = new RegExp(
-    `(^|\\s)${escapeRegExp(normalizedQuery)}($|\\s)`,
+    `(^|${NON_WORD_CHAR_CLASS})${escapeRegExp(normalizedQuery)}($|${NON_WORD_CHAR_CLASS})`,
   );
   if (wordBoundary.test(normalizedTitle)) return 3;
 
