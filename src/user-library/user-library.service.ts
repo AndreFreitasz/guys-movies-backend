@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
@@ -14,6 +14,7 @@ import {
   WatchlistItemDto,
   WatchlistAvailabilityDto,
   WatchlistProviderDto,
+  WatchlistItemType,
 } from './dto/watchlist.dto';
 
 const WATCHLIST_LIMIT = 500;
@@ -184,6 +185,26 @@ export class UserLibraryService {
       );
       failures.value = true;
       return [];
+    }
+  }
+
+  async removeFromWatchlist(
+    userId: number,
+    type: WatchlistItemType,
+    idTmdb: number,
+  ): Promise<void> {
+    const criteria = { user: { id: userId }, idTmdb };
+
+    const result =
+      type === 'movie'
+        ? await this.waitingMovieRepository.delete(criteria)
+        : await this.waitingSerieRepository.delete(criteria);
+
+    if (result.affected === 0) {
+      throw new HttpException(
+        'Título não encontrado na sua lista de espera',
+        HttpStatus.NOT_FOUND,
+      );
     }
   }
 }

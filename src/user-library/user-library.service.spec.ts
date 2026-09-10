@@ -10,18 +10,18 @@ import { SerieService } from '../serie/serie.service';
 
 describe('UserLibraryService', () => {
   let service: UserLibraryService;
-  let watchedMovieRepository: { find: jest.Mock };
-  let waitingMovieRepository: { find: jest.Mock };
+  let watchedMovieRepository: { find: jest.Mock; delete: jest.Mock };
+  let waitingMovieRepository: { find: jest.Mock; delete: jest.Mock };
   let watchedSerieRepository: { find: jest.Mock };
-  let waitingSerieRepository: { find: jest.Mock };
+  let waitingSerieRepository: { find: jest.Mock; delete: jest.Mock };
   let movieService: { getMovieData: jest.Mock };
   let serieService: { getSerieData: jest.Mock };
 
   beforeEach(async () => {
-    watchedMovieRepository = { find: jest.fn() };
-    waitingMovieRepository = { find: jest.fn() };
+    watchedMovieRepository = { find: jest.fn(), delete: jest.fn() };
+    waitingMovieRepository = { find: jest.fn(), delete: jest.fn() };
     watchedSerieRepository = { find: jest.fn() };
-    waitingSerieRepository = { find: jest.fn() };
+    waitingSerieRepository = { find: jest.fn(), delete: jest.fn() };
     movieService = { getMovieData: jest.fn() };
     serieService = { getSerieData: jest.fn() };
 
@@ -347,6 +347,39 @@ describe('UserLibraryService', () => {
 
       expect(movieService.getMovieData).toHaveBeenCalledWith(603);
       expect(serieService.getSerieData).toHaveBeenCalledWith(603);
+    });
+  });
+
+  describe('removeFromWatchlist', () => {
+    it('remove o filme escopado pelo dono', async () => {
+      waitingMovieRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.removeFromWatchlist(7, 'movie', 603);
+
+      expect(waitingMovieRepository.delete).toHaveBeenCalledWith({
+        user: { id: 7 },
+        idTmdb: 603,
+      });
+    });
+
+    it('remove a serie pelo repositorio de series', async () => {
+      waitingSerieRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.removeFromWatchlist(7, 'serie', 1396);
+
+      expect(waitingSerieRepository.delete).toHaveBeenCalledWith({
+        user: { id: 7 },
+        idTmdb: 1396,
+      });
+      expect(waitingMovieRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('lanca 404 quando nada foi removido', async () => {
+      waitingMovieRepository.delete.mockResolvedValue({ affected: 0 });
+
+      await expect(service.removeFromWatchlist(7, 'movie', 603)).rejects.toMatchObject({
+        status: 404,
+      });
     });
   });
 });
