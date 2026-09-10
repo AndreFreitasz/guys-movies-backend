@@ -221,6 +221,9 @@ describe('UserLibraryService', () => {
       expect(waitingMovieRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: { user: { id: 7 } } }),
       );
+      expect(waitingSerieRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { user: { id: 7 } } }),
+      );
       expect(watchedMovieRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: { idUser: { id: 7 } } }),
       );
