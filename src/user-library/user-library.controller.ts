@@ -1,6 +1,7 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { UserLibraryService } from './user-library.service';
 import { UserLibraryDto } from './dto/user-library.dto';
+import { WatchlistDto } from './dto/watchlist.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -14,5 +15,12 @@ export class UserLibraryController {
     @CurrentUser('id') userId: number,
   ): Promise<UserLibraryDto> {
     return this.userLibraryService.getLibrary(userId);
+  }
+
+  @Get('watchlist')
+  async getWatchlist(
+    @CurrentUser('id') userId: number,
+  ): Promise<WatchlistDto> {
+    return this.userLibraryService.getWatchlist(userId);
   }
 }
