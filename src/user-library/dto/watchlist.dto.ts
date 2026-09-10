@@ -21,3 +21,20 @@ export class WatchlistDto {
   items: WatchlistItemDto[];
   stats: WatchlistStatsDto;
 }
+
+export class WatchlistProviderDto {
+  id: number;
+  name: string;
+  logoPath: string | null;
+}
+
+export class WatchlistAvailabilityItemDto {
+  type: WatchlistItemType;
+  idTmdb: number;
+  providers: WatchlistProviderDto[];
+}
+
+export class WatchlistAvailabilityDto {
+  items: WatchlistAvailabilityItemDto[];
+  failed: boolean;
+}

@@ -1,17 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WaitingMovies } from '../movie/entities/waiting-movie.entity';
 import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { WaitingSeries } from '../serie/entities/waiting-serie.entity';
+import { MovieService } from '../movie/movie.service';
+import { SerieService } from '../serie/serie.service';
+import { runWithConcurrency } from '../common/run-with-concurrency';
 import { UserLibraryDto } from './dto/user-library.dto';
-import { WatchlistDto, WatchlistItemDto } from './dto/watchlist.dto';
+import {
+  WatchlistDto,
+  WatchlistItemDto,
+  WatchlistAvailabilityDto,
+  WatchlistProviderDto,
+} from './dto/watchlist.dto';
 
 const WATCHLIST_LIMIT = 500;
+const AVAILABILITY_CONCURRENCY = 6;
 
 @Injectable()
 export class UserLibraryService {
+  private readonly logger = new Logger(UserLibraryService.name);
+
   constructor(
     @InjectRepository(WatchedMovie)
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
@@ -21,6 +32,8 @@ export class UserLibraryService {
     private readonly watchedSerieRepository: Repository<WatchedSerie>,
     @InjectRepository(WaitingSeries)
     private readonly waitingSerieRepository: Repository<WaitingSeries>,
+    private readonly movieService: MovieService,
+    private readonly serieService: SerieService,
   ) {}
 
   async getLibrary(userId: number): Promise<UserLibraryDto> {
@@ -127,5 +140,50 @@ export class UserLibraryService {
         series: items.filter(item => item.type === 'serie').length,
       },
     };
+  }
+
+  async getWatchlistAvailability(
+    userId: number,
+  ): Promise<WatchlistAvailabilityDto> {
+    const { items } = await this.getWatchlist(userId);
+    const failures = { value: false };
+
+    const availability = await runWithConcurrency(
+      items,
+      AVAILABILITY_CONCURRENCY,
+      async item => ({
+        type: item.type,
+        idTmdb: item.idTmdb,
+        providers: await this.fetchFlatrate(item, failures),
+      }),
+    );
+
+    return { items: availability, failed: failures.value };
+  }
+
+  private async fetchFlatrate(
+    item: WatchlistItemDto,
+    failures: { value: boolean },
+  ): Promise<WatchlistProviderDto[]> {
+    try {
+      const data =
+        item.type === 'movie'
+          ? await this.movieService.getMovieData(item.idTmdb)
+          : await this.serieService.getSerieData(item.idTmdb);
+
+      const flatrate = data?.providers?.flatrate ?? [];
+
+      return flatrate.map(provider => ({
+        id: provider.id_provider,
+        name: provider.provider_name,
+        logoPath: provider.logo_path ?? null,
+      }));
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao consultar disponibilidade de ${item.type} ${item.idTmdb}: ${error}`,
+      );
+      failures.value = true;
+      return [];
+    }
   }
 }
