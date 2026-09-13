@@ -1,6 +1,8 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Delete, UseGuards, Param, HttpCode, HttpStatus } from '@nestjs/common';
 import { UserLibraryService } from './user-library.service';
 import { UserLibraryDto } from './dto/user-library.dto';
+import { WatchlistDto, WatchlistAvailabilityDto } from './dto/watchlist.dto';
+import { RemoveWatchlistItemDto } from './dto/remove-watchlist-item.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -14,5 +16,32 @@ export class UserLibraryController {
     @CurrentUser('id') userId: number,
   ): Promise<UserLibraryDto> {
     return this.userLibraryService.getLibrary(userId);
+  }
+
+  @Get('watchlist')
+  async getWatchlist(
+    @CurrentUser('id') userId: number,
+  ): Promise<WatchlistDto> {
+    return this.userLibraryService.getWatchlist(userId);
+  }
+
+  @Get('watchlist/availability')
+  async getWatchlistAvailability(
+    @CurrentUser('id') userId: number,
+  ): Promise<WatchlistAvailabilityDto> {
+    return this.userLibraryService.getWatchlistAvailability(userId);
+  }
+
+  @Delete('watchlist/:type/:idTmdb')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeFromWatchlist(
+    @CurrentUser('id') userId: number,
+    @Param() params: RemoveWatchlistItemDto,
+  ): Promise<void> {
+    await this.userLibraryService.removeFromWatchlist(
+      userId,
+      params.type,
+      params.idTmdb,
+    );
   }
 }

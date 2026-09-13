@@ -19,6 +19,7 @@ import {
 } from '../dto/watched-movie-list.dto';
 import { WatchSourceDto, WatchSourceValue } from '../dto/watch-source.dto';
 import { MovieService } from '../movie.service';
+import { runWithConcurrency } from '../../common/run-with-concurrency';
 
 const WATCHED_LIST_LIMIT = 500;
 const AVAILABILITY_CONCURRENCY = 6;
@@ -184,27 +185,6 @@ export class WatchedMovieService {
     }
   }
 
-  private async runWithConcurrency<T, R>(
-    items: T[],
-    limit: number,
-    worker: (item: T) => Promise<R>,
-  ): Promise<R[]> {
-    const results: R[] = new Array(items.length);
-    let cursor = 0;
-
-    const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
-      (async () => {
-        while (cursor < items.length) {
-          const index = cursor++;
-          results[index] = await worker(items[index]);
-        }
-      })(),
-    );
-
-    await Promise.all(runners);
-    return results;
-  }
-
   private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {
     return {
       idTmdb: watched.idTmdb,
@@ -240,7 +220,7 @@ export class WatchedMovieService {
 
       if (providerIds?.length) {
         const failures = { value: false };
-        const flags = await this.runWithConcurrency(
+        const flags = await runWithConcurrency(
           watchedMovies,
           AVAILABILITY_CONCURRENCY,
           item => this.matchesProviders(item, providerIds, failures),
