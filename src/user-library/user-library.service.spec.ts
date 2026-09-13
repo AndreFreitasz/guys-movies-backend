@@ -160,7 +160,12 @@ describe('UserLibraryService', () => {
           watched: false,
         },
       ]);
-      expect(result.stats).toEqual({ total: 2, movies: 1, series: 1 });
+      expect(result.items.filter(item => item.type === 'movie')).toHaveLength(
+        1,
+      );
+      expect(result.items.filter(item => item.type === 'serie')).toHaveLength(
+        1,
+      );
     });
 
     it('descarta linha com idTmdb nulo', async () => {
@@ -174,7 +179,7 @@ describe('UserLibraryService', () => {
       const result = await service.getWatchlist(1);
 
       expect(result.items).toEqual([]);
-      expect(result.stats.total).toBe(0);
+      expect(result.items).toHaveLength(0);
     });
 
     it('descarta linha cuja relacao com o catalogo sumiu', async () => {

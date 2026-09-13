@@ -11,15 +11,8 @@ export class WatchlistItemDto {
   watched: boolean;
 }
 
-export class WatchlistStatsDto {
-  total: number;
-  movies: number;
-  series: number;
-}
-
 export class WatchlistDto {
   items: WatchlistItemDto[];
-  stats: WatchlistStatsDto;
 }
 
 export class WatchlistProviderDto {

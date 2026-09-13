@@ -133,14 +133,7 @@ export class UserLibraryService {
       .sort((first, second) => second.addedAt.localeCompare(first.addedAt))
       .slice(0, WATCHLIST_LIMIT);
 
-    return {
-      items,
-      stats: {
-        total: items.length,
-        movies: items.filter(item => item.type === 'movie').length,
-        series: items.filter(item => item.type === 'serie').length,
-      },
-    };
+    return { items };
   }
 
   async getWatchlistAvailability(
