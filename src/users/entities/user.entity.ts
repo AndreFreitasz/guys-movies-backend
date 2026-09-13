@@ -3,6 +3,8 @@ import { WatchedMovie } from 'src/movie/entities/watched-movie.entity';
 import { WaitingSeries } from 'src/serie/entities/waiting-serie.entity';
 import { WatchedSerie } from 'src/serie/entities/watched-serie.entity';
 import { WatchedSeason } from 'src/serie/entities/watched-season.entity';
+import { Follow } from './follow.entity';
+import { FavoriteTitle } from './favorite-title.entity';
 import {
   Entity,
   Column,
@@ -33,6 +35,18 @@ export class User {
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
+
+  @Column({ type: 'varchar', length: 280, nullable: true })
+  bio: string | null;
+
+  @OneToMany(() => Follow, follow => follow.follower)
+  following: Follow[];
+
+  @OneToMany(() => Follow, follow => follow.following)
+  followers: Follow[];
+
+  @OneToMany(() => FavoriteTitle, favoriteTitle => favoriteTitle.user)
+  favoriteTitles: FavoriteTitle[];
 
   @OneToMany(() => WatchedMovie, watchedMovie => watchedMovie.idUser)
   watchedMovies: WatchedMovie[];
