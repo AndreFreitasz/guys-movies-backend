@@ -1,5 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { NotFoundException } from '@nestjs/common';
+import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
@@ -150,6 +152,145 @@ describe('ProfileService', () => {
         where: { user: { id: 7 } },
         select: { idTmdb: true, episodeCount: true },
       });
+    });
+  });
+
+  describe('getProfile', () => {
+    const owner = {
+      id: 9,
+      username: 'andre',
+      name: 'André',
+      bio: 'Só filme bom',
+      email: 'nao-pode-vazar@exemplo.com',
+    };
+
+    const stubCounts = () => {
+      watchedMovieRepository.count.mockResolvedValue(3);
+      watchedSeasonRepository.find.mockResolvedValue([{ episodeCount: 5 }]);
+      followRepository.count.mockResolvedValue(0);
+      favoriteRepository.find.mockResolvedValue([]);
+      followRepository.findOne.mockResolvedValue(null);
+    };
+
+    it('nunca inclui email no payload', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      stubCounts();
+
+      const profile = await service.getProfile(1, 'andre');
+
+      expect(JSON.stringify(profile)).not.toContain('nao-pode-vazar');
+      expect(profile).not.toHaveProperty('email');
+    });
+
+    it('acha o usuario sem diferenciar maiuscula de minuscula', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      stubCounts();
+
+      await service.getProfile(1, 'ANDRE');
+
+      const where = userRepository.findOne.mock.calls[0][0].where;
+      expect(where.username).toBeInstanceOf(FindOperator);
+      expect(where.username.type).toBe('ilike');
+      expect(where.username.value).toBe('ANDRE');
+    });
+
+    it('estoura 404 quando o username nao existe', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getProfile(1, 'fantasma')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('marca isSelf e nao consulta relacao quando e o proprio perfil', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      stubCounts();
+
+      const profile = await service.getProfile(9, 'andre');
+
+      expect(profile.isSelf).toBe(true);
+      expect(profile.isFollowing).toBe(false);
+      expect(profile.followsYou).toBe(false);
+      expect(followRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('traz as duas direcoes da relacao no mesmo payload', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      stubCounts();
+      followRepository.findOne
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce(null);
+
+      const profile = await service.getProfile(1, 'andre');
+
+      expect(profile.isFollowing).toBe(true);
+      expect(profile.followsYou).toBe(false);
+    });
+
+    it('resolve titulo e ano dos favoritos e preserva a ordem', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      watchedMovieRepository.count.mockResolvedValue(0);
+      watchedSeasonRepository.find.mockResolvedValue([]);
+      followRepository.count.mockResolvedValue(0);
+      followRepository.findOne.mockResolvedValue(null);
+      favoriteRepository.find.mockResolvedValue([
+        { type: 'serie', idTmdb: 1396, position: 1 },
+        { type: 'movie', idTmdb: 603, position: 2 },
+      ]);
+      movieRepository.find.mockResolvedValue([
+        {
+          idTmdb: 603,
+          title: 'Matrix',
+          posterPath: 'https://cdn/m.jpg',
+          releaseDate: '1999-03-31',
+        },
+      ]);
+      serieRepository.find.mockResolvedValue([
+        {
+          idTmdb: 1396,
+          name: 'Breaking Bad',
+          posterPath: null,
+          firstAirDate: '2008-01-20',
+        },
+      ]);
+
+      const profile = await service.getProfile(1, 'andre');
+
+      expect(profile.favorites).toEqual([
+        {
+          type: 'serie',
+          idTmdb: 1396,
+          title: 'Breaking Bad',
+          posterPath: null,
+          year: 2008,
+          position: 1,
+        },
+        {
+          type: 'movie',
+          idTmdb: 603,
+          title: 'Matrix',
+          posterPath: 'https://cdn/m.jpg',
+          year: 1999,
+          position: 2,
+        },
+      ]);
+    });
+
+    it('omite favorito cujo titulo sumiu da tabela local', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      watchedMovieRepository.count.mockResolvedValue(0);
+      watchedSeasonRepository.find.mockResolvedValue([]);
+      followRepository.count.mockResolvedValue(0);
+      followRepository.findOne.mockResolvedValue(null);
+      favoriteRepository.find.mockResolvedValue([
+        { type: 'movie', idTmdb: 999, position: 1 },
+      ]);
+      movieRepository.find.mockResolvedValue([]);
+      serieRepository.find.mockResolvedValue([]);
+
+      const profile = await service.getProfile(1, 'andre');
+
+      expect(profile.favorites).toEqual([]);
     });
   });
 });
