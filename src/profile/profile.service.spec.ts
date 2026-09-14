@@ -455,17 +455,18 @@ describe('ProfileService', () => {
       expect(Array.isArray(whereClause)).toBe(true);
       expect(whereClause).toHaveLength(2);
 
-      const [firstBranch, secondBranch] = whereClause as any;
+      const [firstBranch, secondBranch] = whereClause;
+      const expectedDate = new Date('2026-03-10T10:00:00.000Z');
 
-      expect(firstBranch).toEqual({
-        following: { id: 9 },
-        createdAt: expect.any(Object),
-      });
-      expect(secondBranch).toEqual({
-        following: { id: 9 },
-        createdAt: expect.any(Object),
-        id: expect.any(Object),
-      });
+      expect(firstBranch.following).toEqual({ id: 9 });
+      expect(firstBranch.createdAt.type).toBe('lessThan');
+      expect(firstBranch.createdAt.value).toEqual(expectedDate);
+
+      expect(secondBranch.following).toEqual({ id: 9 });
+      expect(secondBranch.createdAt.type).toBe('equal');
+      expect(secondBranch.createdAt.value).toEqual(expectedDate);
+      expect(secondBranch.id.type).toBe('lessThan');
+      expect(secondBranch.id.value).toBe(3);
     });
   });
 });
