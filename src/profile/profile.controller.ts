@@ -6,11 +6,12 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
-import { ProfileDto, UserStatsDto } from './dto/profile.dto';
+import { ProfileDto, UserListDto, UserStatsDto } from './dto/profile.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -50,5 +51,35 @@ export class ProfileController {
     @Param('username') username: string,
   ): Promise<void> {
     await this.profileService.unfollowUser(viewerId, username);
+  }
+
+  @Get('profiles/:username/followers')
+  async followers(
+    @CurrentUser('id') viewerId: number,
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<UserListDto> {
+    return this.profileService.listFollowers(
+      viewerId,
+      username,
+      cursor,
+      limit ? Number.parseInt(limit, 10) : undefined,
+    );
+  }
+
+  @Get('profiles/:username/following')
+  async following(
+    @CurrentUser('id') viewerId: number,
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<UserListDto> {
+    return this.profileService.listFollowing(
+      viewerId,
+      username,
+      cursor,
+      limit ? Number.parseInt(limit, 10) : undefined,
+    );
   }
 }

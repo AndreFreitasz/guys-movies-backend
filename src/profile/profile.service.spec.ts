@@ -363,4 +363,78 @@ describe('ProfileService', () => {
       await expect(service.unfollowUser(1, 'andre')).resolves.toBeUndefined();
     });
   });
+
+  describe('listFollowers', () => {
+    const followRow = (id: number, username: string) => ({
+      id,
+      createdAt: new Date('2026-03-10T10:00:00Z'),
+      follower: { id: id * 10, username, name: username.toUpperCase() },
+    });
+
+    it('devolve nextCursor quando ha mais que o limite', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([
+        followRow(3, 'ana'),
+        followRow(2, 'bruno'),
+        followRow(1, 'caio'),
+      ]);
+      followRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.listFollowers(1, 'andre', undefined, 2);
+
+      expect(result.users).toHaveLength(2);
+      expect(result.nextCursor).not.toBeNull();
+    });
+
+    it('devolve nextCursor nulo na ultima pagina', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([followRow(3, 'ana')]);
+      followRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.listFollowers(1, 'andre', undefined, 2);
+
+      expect(result.users).toHaveLength(1);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('marca isFollowing em relacao a quem pede, nao ao dono do perfil', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([
+        followRow(3, 'ana'),
+        followRow(2, 'bruno'),
+      ]);
+      followRepository.findOne.mockImplementation(({ where }) =>
+        Promise.resolve(where.following.id === 30 ? { id: 77 } : null),
+      );
+
+      const result = await service.listFollowers(1, 'andre', undefined, 10);
+
+      expect(result.users[0]).toEqual({
+        username: 'ana',
+        name: 'ANA',
+        isSelf: false,
+        isFollowing: true,
+      });
+      expect(result.users[1].isFollowing).toBe(false);
+    });
+
+    it('marca isSelf para o proprio usuario dentro da lista', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([followRow(3, 'ana')]);
+      followRepository.findOne.mockResolvedValue(null);
+
+      const result = await service.listFollowers(30, 'andre', undefined, 10);
+
+      expect(result.users[0].isSelf).toBe(true);
+    });
+
+    it('limita o limit pedido ao teto', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([]);
+
+      await service.listFollowers(1, 'andre', undefined, 5000);
+
+      expect(followRepository.find.mock.calls[0][0].take).toBe(51);
+    });
+  });
 });

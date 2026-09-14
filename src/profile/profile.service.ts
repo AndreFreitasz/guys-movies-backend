@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, In, Repository } from 'typeorm';
+import { Equal, ILike, In, LessThan, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
 import { FavoriteTitle } from '../users/entities/favorite-title.entity';
@@ -17,10 +17,14 @@ import {
   FavoriteDto,
   ProfileCountsDto,
   ProfileDto,
+  UserListDto,
   UserStatsDto,
 } from './dto/profile.dto';
+import { encodeCursor, decodeCursor } from './cursor';
 
 const UNIQUE_VIOLATION = '23505';
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 50;
 
 @Injectable()
 export class ProfileService {
@@ -250,5 +254,104 @@ export class ProfileService {
       follower: { id: viewerId },
       following: { id: target.id },
     });
+  }
+
+  private resolvePageSize(limit?: number): number {
+    if (!Number.isInteger(limit) || !limit || limit < 1) {
+      return DEFAULT_PAGE_SIZE;
+    }
+    return Math.min(limit, MAX_PAGE_SIZE);
+  }
+
+  private async listRelations(
+    viewerId: number,
+    username: string,
+    direction: 'followers' | 'following',
+    cursor?: string,
+    limit?: number,
+  ): Promise<UserListDto> {
+    const owner = await this.findUserByUsername(username);
+    const pageSize = this.resolvePageSize(limit);
+    const parsed = decodeCursor(cursor);
+
+    const anchor =
+      direction === 'followers'
+        ? { following: { id: owner.id } }
+        : { follower: { id: owner.id } };
+
+    const rows = await this.followRepository.find({
+      where: parsed
+        ? [
+            { ...anchor, createdAt: LessThan(new Date(parsed.occurredAt)) },
+            {
+              ...anchor,
+              createdAt: Equal(new Date(parsed.occurredAt)),
+              id: LessThan(parsed.id),
+            },
+          ]
+        : anchor,
+      relations:
+        direction === 'followers' ? { follower: true } : { following: true },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: pageSize + 1,
+    });
+
+    const hasMore = rows.length > pageSize;
+    const page = hasMore ? rows.slice(0, pageSize) : rows;
+
+    const users = await Promise.all(
+      page.map(async row => {
+        const person = direction === 'followers' ? row.follower : row.following;
+        const isSelf = person.id === viewerId;
+        const relation = isSelf
+          ? null
+          : await this.followRepository.findOne({
+              where: {
+                follower: { id: viewerId },
+                following: { id: person.id },
+              },
+              select: ['id'],
+            });
+
+        return {
+          username: person.username,
+          name: person.name,
+          isSelf,
+          isFollowing: Boolean(relation),
+        };
+      }),
+    );
+
+    const last = page[page.length - 1];
+
+    return {
+      users,
+      nextCursor:
+        hasMore && last
+          ? encodeCursor({
+              occurredAt: new Date(last.createdAt).toISOString(),
+              rank: 0,
+              id: last.id,
+            })
+          : null,
+    };
+  }
+
+  async listFollowers(
+    viewerId: number,
+    username: string,
+    cursor?: string,
+    limit?: number,
+  ): Promise<UserListDto> {
+    return this.listRelations(viewerId, username, 'followers', cursor, limit);
+  }
+
+  async listFollowing(
+    viewerId: number,
+    username: string,
+    cursor?: string,
+    limit?: number,
+  ): Promise<UserListDto> {
+    return this.listRelations(viewerId, username, 'following', cursor, limit);
   }
 }
