@@ -170,4 +170,99 @@ describe('TimelineService', () => {
       occurredAt: '2026-03-12',
     });
   });
+
+  it('passa order DESC para ambos repositorios', async () => {
+    watchedMovieRepository.find.mockResolvedValue([]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    await service.getTimeline('andre');
+
+    expect(watchedMovieRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: { watchedAt: 'DESC', id: 'DESC' },
+      }),
+    );
+    expect(watchedSeasonRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order: { watchedAt: 'DESC', id: 'DESC' },
+      }),
+    );
+  });
+
+  it('filtra filmes pelo idUser do dono', async () => {
+    watchedMovieRepository.find.mockResolvedValue([]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    await service.getTimeline('andre');
+
+    expect(watchedMovieRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { idUser: { id: 9 } },
+      }),
+    );
+  });
+
+  it('filtra temporadas pelo user do dono', async () => {
+    watchedMovieRepository.find.mockResolvedValue([]);
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    await service.getTimeline('andre');
+
+    expect(watchedSeasonRepository.find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { user: { id: 9 } },
+      }),
+    );
+  });
+
+  it('resolve page size para 20 quando limit nao e fornecido', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      movie(1, '2026-03-12'),
+      movie(2, '2026-03-12'),
+      movie(3, '2026-03-12'),
+    ]);
+
+    const result = await service.getTimeline('andre');
+
+    expect(result.events).toHaveLength(3);
+  });
+
+  it('resolve page size para 50 quando limit ultrapassa MAX_PAGE_SIZE', async () => {
+    const manyMovies = Array.from({ length: 100 }, (_, i) =>
+      movie(i + 1, '2026-03-12'),
+    );
+    watchedMovieRepository.find.mockResolvedValue(manyMovies);
+
+    const result = await service.getTimeline('andre', undefined, 100);
+
+    expect(result.events).toHaveLength(50);
+  });
+
+  it('resolve page size para 20 quando limit nao e numero inteiro', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      movie(1, '2026-03-12'),
+      movie(2, '2026-03-12'),
+    ]);
+
+    const result = await service.getTimeline('andre', undefined, 3.5 as any);
+
+    expect(result.events).toHaveLength(2);
+  });
+
+  it('monta evento de filme completo com rating nulo', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      { ...movie(1, '2026-03-12'), rating: null },
+    ]);
+
+    const result = await service.getTimeline('andre');
+
+    expect(result.events[0]).toEqual({
+      kind: 'movie',
+      idTmdb: 101,
+      title: 'Duna',
+      posterPath: 'https://cdn/p.jpg',
+      rating: null,
+      occurredAt: '2026-03-12',
+    });
+  });
 });

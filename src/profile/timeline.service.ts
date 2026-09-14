@@ -85,11 +85,13 @@ export class TimelineService {
       this.watchedMovieRepository.find({
         where: { idUser: { id: owner.id } },
         relations: { idMovie: true },
+        order: { watchedAt: 'DESC', id: 'DESC' },
         take: SOURCE_LIMIT,
       }),
       this.watchedSeasonRepository.find({
         where: { user: { id: owner.id } },
         relations: { serie: true },
+        order: { watchedAt: 'DESC', id: 'DESC' },
         take: SOURCE_LIMIT,
       }),
     ]);
