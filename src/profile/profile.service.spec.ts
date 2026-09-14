@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
+import { encodeCursor } from './cursor';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
 import { FavoriteTitle } from '../users/entities/favorite-title.entity';
@@ -435,6 +436,36 @@ describe('ProfileService', () => {
       await service.listFollowers(1, 'andre', undefined, 5000);
 
       expect(followRepository.find.mock.calls[0][0].take).toBe(51);
+    });
+
+    it('pagina usando o keyset cursor quando fornecido', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.find.mockResolvedValue([followRow(2, 'bruno')]);
+      followRepository.findOne.mockResolvedValue(null);
+
+      const cursor = encodeCursor({
+        occurredAt: '2026-03-10T10:00:00.000Z',
+        rank: 0,
+        id: 3,
+      });
+
+      await service.listFollowers(1, 'andre', cursor, 10);
+
+      const whereClause = followRepository.find.mock.calls[0][0].where;
+      expect(Array.isArray(whereClause)).toBe(true);
+      expect(whereClause).toHaveLength(2);
+
+      const [firstBranch, secondBranch] = whereClause as any;
+
+      expect(firstBranch).toEqual({
+        following: { id: 9 },
+        createdAt: expect.any(Object),
+      });
+      expect(secondBranch).toEqual({
+        following: { id: 9 },
+        createdAt: expect.any(Object),
+        id: expect.any(Object),
+      });
     });
   });
 });

@@ -292,6 +292,18 @@ export class ProfileService {
         : anchor,
       relations:
         direction === 'followers' ? { follower: true } : { following: true },
+      select:
+        direction === 'followers'
+          ? {
+              id: true,
+              createdAt: true,
+              follower: { id: true, username: true, name: true },
+            }
+          : {
+              id: true,
+              createdAt: true,
+              following: { id: true, username: true, name: true },
+            },
       order: { createdAt: 'DESC', id: 'DESC' },
       take: pageSize + 1,
     });
