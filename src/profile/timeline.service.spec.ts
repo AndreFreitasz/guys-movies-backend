@@ -190,6 +190,7 @@ describe('TimelineService', () => {
   });
 
   it('filtra filmes pelo idUser do dono', async () => {
+    userRepository.findOne.mockResolvedValue({ id: 42 });
     watchedMovieRepository.find.mockResolvedValue([]);
     watchedSeasonRepository.find.mockResolvedValue([]);
 
@@ -197,12 +198,13 @@ describe('TimelineService', () => {
 
     expect(watchedMovieRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { idUser: { id: 9 } },
+        where: { idUser: { id: 42 } },
       }),
     );
   });
 
   it('filtra temporadas pelo user do dono', async () => {
+    userRepository.findOne.mockResolvedValue({ id: 42 });
     watchedMovieRepository.find.mockResolvedValue([]);
     watchedSeasonRepository.find.mockResolvedValue([]);
 
@@ -210,21 +212,20 @@ describe('TimelineService', () => {
 
     expect(watchedSeasonRepository.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { user: { id: 9 } },
+        where: { user: { id: 42 } },
       }),
     );
   });
 
   it('resolve page size para 20 quando limit nao e fornecido', async () => {
-    watchedMovieRepository.find.mockResolvedValue([
-      movie(1, '2026-03-12'),
-      movie(2, '2026-03-12'),
-      movie(3, '2026-03-12'),
-    ]);
+    const manyMovies = Array.from({ length: 25 }, (_, i) =>
+      movie(i + 1, '2026-03-12'),
+    );
+    watchedMovieRepository.find.mockResolvedValue(manyMovies);
 
     const result = await service.getTimeline('andre');
 
-    expect(result.events).toHaveLength(3);
+    expect(result.events).toHaveLength(20);
   });
 
   it('resolve page size para 50 quando limit ultrapassa MAX_PAGE_SIZE', async () => {
@@ -239,14 +240,14 @@ describe('TimelineService', () => {
   });
 
   it('resolve page size para 20 quando limit nao e numero inteiro', async () => {
-    watchedMovieRepository.find.mockResolvedValue([
-      movie(1, '2026-03-12'),
-      movie(2, '2026-03-12'),
-    ]);
+    const manyMovies = Array.from({ length: 25 }, (_, i) =>
+      movie(i + 1, '2026-03-12'),
+    );
+    watchedMovieRepository.find.mockResolvedValue(manyMovies);
 
     const result = await service.getTimeline('andre', undefined, 3.5 as any);
 
-    expect(result.events).toHaveLength(2);
+    expect(result.events).toHaveLength(20);
   });
 
   it('monta evento de filme completo com rating nulo', async () => {
