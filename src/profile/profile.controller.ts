@@ -11,14 +11,23 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
-import { ProfileDto, UserListDto, UserStatsDto } from './dto/profile.dto';
+import { TimelineService } from './timeline.service';
+import {
+  ProfileDto,
+  UserListDto,
+  UserStatsDto,
+  TimelineDto,
+} from './dto/profile.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ProfileController {
-  constructor(private readonly profileService: ProfileService) {}
+  constructor(
+    private readonly profileService: ProfileService,
+    private readonly timelineService: TimelineService,
+  ) {}
 
   @Get('me/stats')
   async getStats(@CurrentUser('id') userId: number): Promise<UserStatsDto> {
@@ -77,6 +86,19 @@ export class ProfileController {
   ): Promise<UserListDto> {
     return this.profileService.listFollowing(
       viewerId,
+      username,
+      cursor,
+      limit ? Number.parseInt(limit, 10) : undefined,
+    );
+  }
+
+  @Get('profiles/:username/timeline')
+  async timeline(
+    @Param('username') username: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<TimelineDto> {
+    return this.timelineService.getTimeline(
       username,
       cursor,
       limit ? Number.parseInt(limit, 10) : undefined,

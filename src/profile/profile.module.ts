@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
+import { TimelineService } from './timeline.service';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
 import { FavoriteTitle } from '../users/entities/favorite-title.entity';
@@ -25,6 +26,6 @@ import { Series } from '../serie/entities/series.entity';
     ]),
   ],
   controllers: [ProfileController],
-  providers: [ProfileService],
+  providers: [ProfileService, TimelineService],
 })
 export class ProfileModule {}
