@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
 import { User } from '../users/entities/user.entity';
@@ -291,6 +291,76 @@ describe('ProfileService', () => {
       const profile = await service.getProfile(1, 'andre');
 
       expect(profile.favorites).toEqual([]);
+    });
+  });
+
+  describe('followUser', () => {
+    it('cria o vinculo quando ainda nao existe', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.findOne.mockResolvedValue(null);
+      followRepository.insert.mockResolvedValue({});
+
+      await service.followUser(1, 'andre');
+
+      expect(followRepository.insert).toHaveBeenCalledWith({
+        follower: { id: 1 },
+        following: { id: 9 },
+      });
+    });
+
+    it('e idempotente: seguir de novo nao cria segunda linha', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.findOne.mockResolvedValue({ id: 5 });
+
+      await service.followUser(1, 'andre');
+
+      expect(followRepository.insert).not.toHaveBeenCalled();
+    });
+
+    it('sobrevive a corrida perdida sem estourar para o cliente', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.findOne.mockResolvedValue(null);
+      followRepository.insert.mockRejectedValue({ code: '23505' });
+
+      await expect(service.followUser(1, 'andre')).resolves.toBeUndefined();
+    });
+
+    it('rejeita seguir a si mesmo', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 1, username: 'andre' });
+
+      await expect(service.followUser(1, 'andre')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(followRepository.insert).not.toHaveBeenCalled();
+    });
+
+    it('estoura 404 para username inexistente', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.followUser(1, 'fantasma')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('unfollowUser', () => {
+    it('remove o vinculo escopado nas duas pontas', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.unfollowUser(1, 'andre');
+
+      expect(followRepository.delete).toHaveBeenCalledWith({
+        follower: { id: 1 },
+        following: { id: 9 },
+      });
+    });
+
+    it('e idempotente: remover o que nao existe nao estoura', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 9, username: 'andre' });
+      followRepository.delete.mockResolvedValue({ affected: 0 });
+
+      await expect(service.unfollowUser(1, 'andre')).resolves.toBeUndefined();
     });
   });
 });

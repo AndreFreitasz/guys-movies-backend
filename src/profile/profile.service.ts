@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, In, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
@@ -15,6 +19,8 @@ import {
   ProfileDto,
   UserStatsDto,
 } from './dto/profile.dto';
+
+const UNIQUE_VIOLATION = '23505';
 
 @Injectable()
 export class ProfileService {
@@ -196,5 +202,53 @@ export class ProfileService {
       counts,
       favorites,
     };
+  }
+
+  private async findUserByUsername(username: string): Promise<User> {
+    const user = await this.userRepository.findOne({
+      where: { username: ILike(username) },
+      select: ['id', 'username'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Perfil nao encontrado');
+    }
+
+    return user;
+  }
+
+  async followUser(viewerId: number, username: string): Promise<void> {
+    const target = await this.findUserByUsername(username);
+
+    if (target.id === viewerId) {
+      throw new BadRequestException('Nao e possivel seguir a si mesmo');
+    }
+
+    const existing = await this.followRepository.findOne({
+      where: { follower: { id: viewerId }, following: { id: target.id } },
+      select: ['id'],
+    });
+
+    if (existing) return;
+
+    try {
+      await this.followRepository.insert({
+        follower: { id: viewerId },
+        following: { id: target.id },
+      });
+    } catch (caught) {
+      if ((caught as { code?: string }).code !== UNIQUE_VIOLATION) {
+        throw caught;
+      }
+    }
+  }
+
+  async unfollowUser(viewerId: number, username: string): Promise<void> {
+    const target = await this.findUserByUsername(username);
+
+    await this.followRepository.delete({
+      follower: { id: viewerId },
+      following: { id: target.id },
+    });
   }
 }
