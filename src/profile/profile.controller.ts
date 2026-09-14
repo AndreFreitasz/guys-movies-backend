@@ -1,11 +1,14 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -13,11 +16,14 @@ import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
 import { TimelineService } from './timeline.service';
 import {
+  FavoriteDto,
   ProfileDto,
   UserListDto,
   UserStatsDto,
   TimelineDto,
 } from './dto/profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { SetFavoritesDto } from './dto/set-favorites.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -90,6 +96,22 @@ export class ProfileController {
       cursor,
       limit ? Number.parseInt(limit, 10) : undefined,
     );
+  }
+
+  @Patch('me/profile')
+  async updateProfile(
+    @CurrentUser('id') userId: number,
+    @Body() body: UpdateProfileDto,
+  ): Promise<{ bio: string | null }> {
+    return this.profileService.updateBio(userId, body.bio);
+  }
+
+  @Put('me/profile/favorites')
+  async setFavorites(
+    @CurrentUser('id') userId: number,
+    @Body() body: SetFavoritesDto,
+  ): Promise<FavoriteDto[]> {
+    return this.profileService.setFavorites(userId, body.favorites);
   }
 
   @Get('profiles/:username/timeline')

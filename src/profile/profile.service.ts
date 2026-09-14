@@ -15,6 +15,7 @@ import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
 import {
   FavoriteDto,
+  FavoriteType,
   ProfileCountsDto,
   ProfileDto,
   UserListDto,
@@ -365,5 +366,70 @@ export class ProfileService {
     limit?: number,
   ): Promise<UserListDto> {
     return this.listRelations(viewerId, username, 'following', cursor, limit);
+  }
+
+  async updateBio(
+    userId: number,
+    bio: string | null,
+  ): Promise<{ bio: string | null }> {
+    const trimmed = typeof bio === 'string' ? bio.trim() : null;
+    const value = trimmed && trimmed.length > 0 ? trimmed : null;
+
+    await this.userRepository.update(userId, { bio: value });
+
+    return { bio: value };
+  }
+
+  async setFavorites(
+    userId: number,
+    favorites: { type: FavoriteType; idTmdb: number }[],
+  ): Promise<FavoriteDto[]> {
+    const keys = favorites.map(item => `${item.type}:${item.idTmdb}`);
+    if (new Set(keys).size !== keys.length) {
+      throw new BadRequestException('Nao repita o mesmo titulo nos favoritos');
+    }
+
+    if (favorites.length > 0) {
+      const [watchedMovies, watchedSeries] = await Promise.all([
+        this.watchedMovieRepository.find({
+          where: { idUser: { id: userId } },
+          select: { idTmdb: true },
+        }),
+        this.watchedSerieRepository.find({
+          where: { user: { id: userId } },
+          select: { idTmdb: true },
+        }),
+      ]);
+
+      const owned = new Set([
+        ...watchedMovies.map(row => `movie:${row.idTmdb}`),
+        ...watchedSeries.map(row => `serie:${row.idTmdb}`),
+      ]);
+
+      const missing = keys.find(key => !owned.has(key));
+      if (missing) {
+        throw new BadRequestException(
+          'Só é possível favoritar títulos que você marcou como assistidos',
+        );
+      }
+    }
+
+    await this.favoriteRepository.manager.transaction(async manager => {
+      await manager.delete(FavoriteTitle, { user: { id: userId } });
+
+      if (favorites.length === 0) return;
+
+      await manager.insert(
+        FavoriteTitle,
+        favorites.map((item, index) => ({
+          user: { id: userId },
+          type: item.type,
+          idTmdb: item.idTmdb,
+          position: index + 1,
+        })),
+      );
+    });
+
+    return this.resolveFavorites(userId);
   }
 }

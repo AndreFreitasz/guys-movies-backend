@@ -469,4 +469,132 @@ describe('ProfileService', () => {
       expect(secondBranch.id.value).toBe(3);
     });
   });
+
+  describe('setFavorites', () => {
+    const runTransaction = () => {
+      favoriteRepository.manager.transaction.mockImplementation(
+        async (callback: (manager: unknown) => Promise<unknown>) =>
+          callback({ delete: jest.fn(), insert: jest.fn(), save: jest.fn() }),
+      );
+    };
+
+    it('rejeita titulo que nao esta na biblioteca de assistidos', async () => {
+      watchedMovieRepository.find.mockResolvedValue([]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setFavorites(7, [{ type: 'movie', idTmdb: 603 }]),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejeita duplicata dentro da propria lista', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 603 }]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setFavorites(7, [
+          { type: 'movie', idTmdb: 603 },
+          { type: 'movie', idTmdb: 603 },
+        ]),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('aceita mesmo idTmdb em tipos diferentes', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 603 }]);
+      watchedSerieRepository.find.mockResolvedValue([{ idTmdb: 603 }]);
+      runTransaction();
+      favoriteRepository.find.mockResolvedValue([]);
+      movieRepository.find.mockResolvedValue([]);
+      serieRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setFavorites(7, [
+          { type: 'movie', idTmdb: 603 },
+          { type: 'serie', idTmdb: 603 },
+        ]),
+      ).resolves.toEqual([]);
+    });
+
+    it('apaga e reinsere dentro de uma transacao, com posicao 1..n', async () => {
+      watchedMovieRepository.find.mockResolvedValue([
+        { idTmdb: 603 },
+        { idTmdb: 550 },
+      ]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+
+      const manager = { delete: jest.fn(), insert: jest.fn() };
+      favoriteRepository.manager.transaction.mockImplementation(
+        async (callback: (m: unknown) => Promise<unknown>) => callback(manager),
+      );
+      favoriteRepository.find.mockResolvedValue([]);
+      movieRepository.find.mockResolvedValue([]);
+      serieRepository.find.mockResolvedValue([]);
+
+      await service.setFavorites(7, [
+        { type: 'movie', idTmdb: 550 },
+        { type: 'movie', idTmdb: 603 },
+      ]);
+
+      expect(manager.delete).toHaveBeenCalledWith(FavoriteTitle, {
+        user: { id: 7 },
+      });
+      expect(manager.insert).toHaveBeenCalledWith(FavoriteTitle, [
+        { user: { id: 7 }, type: 'movie', idTmdb: 550, position: 1 },
+        { user: { id: 7 }, type: 'movie', idTmdb: 603, position: 2 },
+      ]);
+    });
+
+    it('lista vazia limpa os favoritos sem inserir nada', async () => {
+      const manager = { delete: jest.fn(), insert: jest.fn() };
+      favoriteRepository.manager.transaction.mockImplementation(
+        async (callback: (m: unknown) => Promise<unknown>) => callback(manager),
+      );
+      favoriteRepository.find.mockResolvedValue([]);
+      movieRepository.find.mockResolvedValue([]);
+      serieRepository.find.mockResolvedValue([]);
+
+      await service.setFavorites(7, []);
+
+      expect(manager.delete).toHaveBeenCalled();
+      expect(manager.insert).not.toHaveBeenCalled();
+    });
+
+    it('consulta a biblioteca escopada no usuario da sessao', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 603 }]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+      runTransaction();
+      favoriteRepository.find.mockResolvedValue([]);
+      movieRepository.find.mockResolvedValue([]);
+      serieRepository.find.mockResolvedValue([]);
+
+      await service.setFavorites(7, [{ type: 'movie', idTmdb: 603 }]);
+
+      expect(watchedMovieRepository.find).toHaveBeenCalledWith({
+        where: { idUser: { id: 7 } },
+        select: { idTmdb: true },
+      });
+    });
+  });
+
+  describe('updateBio', () => {
+    it('salva a bio e devolve o valor gravado', async () => {
+      userRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateBio(7, '  Só filme bom  ');
+
+      expect(userRepository.update).toHaveBeenCalledWith(7, {
+        bio: 'Só filme bom',
+      });
+      expect(result).toEqual({ bio: 'Só filme bom' });
+    });
+
+    it('grava null quando a bio vira string vazia', async () => {
+      userRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateBio(7, '   ');
+
+      expect(userRepository.update).toHaveBeenCalledWith(7, { bio: null });
+      expect(result).toEqual({ bio: null });
+    });
+  });
 });
