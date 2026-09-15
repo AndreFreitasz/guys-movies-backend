@@ -22,6 +22,9 @@ export class Movies {
   @Column({ type: 'varchar', length: 255, nullable: true })
   posterPath: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  backdropPath: string | null;
+
   @Column({ type: 'varchar', length: 80, nullable: true })
   director: string;
 

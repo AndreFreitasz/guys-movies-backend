@@ -23,6 +23,9 @@ export class Series {
   @Column({ type: 'varchar', length: 255, nullable: true })
   posterPath: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  backdropPath: string | null;
+
   @Column({ type: 'int', nullable: true })
   numberOfSeasons: number;
 

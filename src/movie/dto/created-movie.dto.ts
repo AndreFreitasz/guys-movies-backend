@@ -40,6 +40,14 @@ export class CreatedMovieDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
+  @Matches(/^(https:\/\/image\.tmdb\.org\/|\/)/, {
+    message: 'backdropPath deve apontar para a CDN de imagens da TMDB',
+  })
+  backdropPath?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(80)
   director: string;
 
