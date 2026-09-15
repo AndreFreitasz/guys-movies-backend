@@ -15,7 +15,10 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
 import { TimelineService } from './timeline.service';
+import { CoverCatalogService } from './cover-catalog.service';
 import {
+  CoverDto,
+  CoverOptionDto,
   FavoriteDto,
   ProfileDto,
   UserListDto,
@@ -24,6 +27,7 @@ import {
 } from './dto/profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SetFavoritesDto } from './dto/set-favorites.dto';
+import { SetCoverDto } from './dto/set-cover.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -33,6 +37,7 @@ export class ProfileController {
   constructor(
     private readonly profileService: ProfileService,
     private readonly timelineService: TimelineService,
+    private readonly coverCatalogService: CoverCatalogService,
   ) {}
 
   @Get('me/stats')
@@ -102,8 +107,8 @@ export class ProfileController {
   async updateProfile(
     @CurrentUser('id') userId: number,
     @Body() body: UpdateProfileDto,
-  ): Promise<{ bio: string | null }> {
-    return this.profileService.updateBio(userId, body.bio);
+  ): Promise<{ bio?: string | null; name?: string; username?: string }> {
+    return this.profileService.updateProfile(userId, body);
   }
 
   @Put('me/profile/favorites')
@@ -112,6 +117,22 @@ export class ProfileController {
     @Body() body: SetFavoritesDto,
   ): Promise<FavoriteDto[]> {
     return this.profileService.setFavorites(userId, body.favorites);
+  }
+
+  @Get('me/covers')
+  async covers(
+    @CurrentUser('id') userId: number,
+    @Query('q') term?: string,
+  ): Promise<CoverOptionDto[]> {
+    return this.coverCatalogService.list(userId, term);
+  }
+
+  @Patch('me/profile/cover')
+  async setCover(
+    @CurrentUser('id') userId: number,
+    @Body() body: SetCoverDto,
+  ): Promise<CoverDto | null> {
+    return this.profileService.setCover(userId, body.cover ?? null);
   }
 
   @Get('profiles/:username/timeline')

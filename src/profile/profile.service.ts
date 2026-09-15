@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,7 +14,9 @@ import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 import {
+  CoverDto,
   FavoriteDto,
   FavoriteType,
   ProfileCountsDto,
@@ -46,6 +49,8 @@ export class ProfileService {
     private readonly movieRepository: Repository<Movies>,
     @InjectRepository(Series)
     private readonly serieRepository: Repository<Series>,
+    @InjectRepository(UserAvatar)
+    private readonly avatarRepository: Repository<UserAvatar>,
   ) {}
 
   async getStats(userId: number): Promise<UserStatsDto> {
@@ -94,7 +99,7 @@ export class ProfileService {
   private async resolveFavorites(userId: number): Promise<FavoriteDto[]> {
     const rows = await this.favoriteRepository.find({
       where: { user: { id: userId } },
-      order: { position: 'ASC' },
+      order: { type: 'ASC', position: 'ASC' },
     });
 
     if (rows.length === 0) return [];
@@ -145,6 +150,105 @@ export class ProfileService {
     }, []);
   }
 
+  private async avatarStampsFor(
+    userIds: number[],
+  ): Promise<Map<number, string>> {
+    if (userIds.length === 0) return new Map();
+
+    const rows = await this.avatarRepository.find({
+      where: { userId: In(userIds) },
+      select: { userId: true, updatedAt: true },
+    });
+
+    return new Map(
+      rows.map(row => [row.userId, new Date(row.updatedAt).toISOString()]),
+    );
+  }
+
+  private isoOf(date: Date | null | undefined): string | null {
+    if (!date) return null;
+    const parsed = new Date(date);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  private async resolveCover(
+    type: FavoriteType | null,
+    idTmdb: number | null,
+  ): Promise<CoverDto | null> {
+    if (!type || !idTmdb) return null;
+
+    if (type === 'movie') {
+      const [movie] = await this.movieRepository.find({
+        where: { idTmdb },
+        take: 1,
+      });
+      if (!movie) return null;
+      return {
+        type,
+        idTmdb,
+        title: movie.title,
+        backdropPath: movie.backdropPath ?? null,
+      };
+    }
+
+    const [serie] = await this.serieRepository.find({
+      where: { idTmdb },
+      take: 1,
+    });
+    if (!serie) return null;
+    return {
+      type,
+      idTmdb,
+      title: serie.name,
+      backdropPath: serie.backdropPath ?? null,
+    };
+  }
+
+  private async assertWatched(
+    userId: number,
+    type: FavoriteType,
+    idTmdb: number,
+  ): Promise<void> {
+    const rows =
+      type === 'movie'
+        ? await this.watchedMovieRepository.find({
+            where: { idUser: { id: userId } },
+            select: { idTmdb: true },
+          })
+        : await this.watchedSerieRepository.find({
+            where: { user: { id: userId } },
+            select: { idTmdb: true },
+          });
+
+    if (!rows.some(row => row.idTmdb === idTmdb)) {
+      throw new BadRequestException(
+        'So e possivel usar como capa um titulo que voce marcou como assistido',
+      );
+    }
+  }
+
+  async setCover(
+    userId: number,
+    cover: { type: FavoriteType; idTmdb: number } | null,
+  ): Promise<CoverDto | null> {
+    if (!cover) {
+      await this.userRepository.update(userId, {
+        coverType: null,
+        coverTmdbId: null,
+      });
+      return null;
+    }
+
+    await this.assertWatched(userId, cover.type, cover.idTmdb);
+
+    await this.userRepository.update(userId, {
+      coverType: cover.type,
+      coverTmdbId: cover.idTmdb,
+    });
+
+    return this.resolveCover(cover.type, cover.idTmdb);
+  }
+
   private async resolveCounts(userId: number): Promise<ProfileCountsDto> {
     const [followers, following, movies, seasons] = await Promise.all([
       this.followRepository.count({ where: { following: { id: userId } } }),
@@ -170,7 +274,15 @@ export class ProfileService {
   async getProfile(viewerId: number, username: string): Promise<ProfileDto> {
     const owner = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id', 'username', 'name', 'bio'],
+      select: [
+        'id',
+        'username',
+        'name',
+        'bio',
+        'createdAt',
+        'coverType',
+        'coverTmdbId',
+      ],
     });
 
     if (!owner) {
@@ -179,22 +291,31 @@ export class ProfileService {
 
     const isSelf = owner.id === viewerId;
 
-    const [counts, favorites, followingRow, followsYouRow] = await Promise.all([
-      this.resolveCounts(owner.id),
-      this.resolveFavorites(owner.id),
-      isSelf
-        ? Promise.resolve(null)
-        : this.followRepository.findOne({
-            where: { follower: { id: viewerId }, following: { id: owner.id } },
-            select: ['id'],
-          }),
-      isSelf
-        ? Promise.resolve(null)
-        : this.followRepository.findOne({
-            where: { follower: { id: owner.id }, following: { id: viewerId } },
-            select: ['id'],
-          }),
-    ]);
+    const [counts, favorites, cover, avatarStamps, followingRow, followsYouRow] =
+      await Promise.all([
+        this.resolveCounts(owner.id),
+        this.resolveFavorites(owner.id),
+        this.resolveCover(owner.coverType, owner.coverTmdbId),
+        this.avatarStampsFor([owner.id]),
+        isSelf
+          ? Promise.resolve(null)
+          : this.followRepository.findOne({
+              where: {
+                follower: { id: viewerId },
+                following: { id: owner.id },
+              },
+              select: ['id'],
+            }),
+        isSelf
+          ? Promise.resolve(null)
+          : this.followRepository.findOne({
+              where: {
+                follower: { id: owner.id },
+                following: { id: viewerId },
+              },
+              select: ['id'],
+            }),
+      ]);
 
     return {
       id: owner.id,
@@ -206,6 +327,9 @@ export class ProfileService {
       followsYou: Boolean(followsYouRow),
       counts,
       favorites,
+      cover,
+      joinedAt: this.isoOf(owner.createdAt),
+      avatarUpdatedAt: avatarStamps.get(owner.id) ?? null,
     };
   }
 
@@ -312,6 +436,12 @@ export class ProfileService {
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
 
+    const stamps = await this.avatarStampsFor(
+      page.map(row =>
+        direction === 'followers' ? row.follower.id : row.following.id,
+      ),
+    );
+
     const users = await Promise.all(
       page.map(async row => {
         const person = direction === 'followers' ? row.follower : row.following;
@@ -331,6 +461,7 @@ export class ProfileService {
           name: person.name,
           isSelf,
           isFollowing: Boolean(relation),
+          avatarUpdatedAt: stamps.get(person.id) ?? null,
         };
       }),
     );
@@ -380,6 +511,63 @@ export class ProfileService {
     return { bio: value };
   }
 
+  private async assertUsernameFree(
+    userId: number,
+    username: string,
+  ): Promise<void> {
+    const taken = await this.userRepository.findOne({
+      where: { username: ILike(username) },
+      select: ['id'],
+    });
+
+    if (taken && taken.id !== userId) {
+      throw new ConflictException('Esse nome de usuario ja esta em uso');
+    }
+  }
+
+  async updateProfile(
+    userId: number,
+    changes: { bio?: string | null; name?: string; username?: string },
+  ): Promise<{ bio?: string | null; name?: string; username?: string }> {
+    const patch: { bio?: string | null; name?: string; username?: string } = {};
+
+    if ('bio' in changes) {
+      const trimmed =
+        typeof changes.bio === 'string' ? changes.bio.trim() : null;
+      patch.bio = trimmed && trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (changes.name !== undefined) {
+      const name = changes.name.trim();
+      if (name.length === 0) {
+        throw new BadRequestException('O nome nao pode ficar vazio');
+      }
+      patch.name = name;
+    }
+
+    if (changes.username !== undefined) {
+      const username = changes.username.trim();
+      if (username.length === 0) {
+        throw new BadRequestException('O nome de usuario nao pode ficar vazio');
+      }
+      await this.assertUsernameFree(userId, username);
+      patch.username = username;
+    }
+
+    if (Object.keys(patch).length === 0) return {};
+
+    try {
+      await this.userRepository.update(userId, patch);
+    } catch (caught) {
+      if ((caught as { code?: string }).code === UNIQUE_VIOLATION) {
+        throw new ConflictException('Esse nome de usuario ja esta em uso');
+      }
+      throw caught;
+    }
+
+    return patch;
+  }
+
   async setFavorites(
     userId: number,
     favorites: { type: FavoriteType; idTmdb: number }[],
@@ -387,6 +575,20 @@ export class ProfileService {
     const keys = favorites.map(item => `${item.type}:${item.idTmdb}`);
     if (new Set(keys).size !== keys.length) {
       throw new BadRequestException('Nao repita o mesmo titulo nos favoritos');
+    }
+
+    const perType = favorites.reduce<Record<string, number>>(
+      (accumulator, item) => ({
+        ...accumulator,
+        [item.type]: (accumulator[item.type] ?? 0) + 1,
+      }),
+      {},
+    );
+
+    if (Object.values(perType).some(total => total > 3)) {
+      throw new BadRequestException(
+        'Escolha no maximo tres filmes e tres series',
+      );
     }
 
     if (favorites.length > 0) {
@@ -419,14 +621,24 @@ export class ProfileService {
 
       if (favorites.length === 0) return;
 
+      const ordered = [
+        ...favorites.filter(item => item.type === 'movie'),
+        ...favorites.filter(item => item.type === 'serie'),
+      ];
+
+      const counters: Record<string, number> = {};
+
       await manager.insert(
         FavoriteTitle,
-        favorites.map((item, index) => ({
-          user: { id: userId },
-          type: item.type,
-          idTmdb: item.idTmdb,
-          position: index + 1,
-        })),
+        ordered.map(item => {
+          counters[item.type] = (counters[item.type] ?? 0) + 1;
+          return {
+            user: { id: userId },
+            type: item.type,
+            idTmdb: item.idTmdb,
+            position: counters[item.type],
+          };
+        }),
       );
     });
 

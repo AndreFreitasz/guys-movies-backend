@@ -42,6 +42,14 @@ export class CreatedSerieDto {
   posterPath?: string | null;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Matches(/^(https:\/\/image\.tmdb\.org\/|\/)/, {
+    message: 'backdropPath deve apontar para a CDN de imagens da TMDB',
+  })
+  backdropPath?: string | null;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(10)

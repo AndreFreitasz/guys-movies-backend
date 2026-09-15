@@ -4,7 +4,7 @@ import { WaitingSeries } from 'src/serie/entities/waiting-serie.entity';
 import { WatchedSerie } from 'src/serie/entities/watched-serie.entity';
 import { WatchedSeason } from 'src/serie/entities/watched-season.entity';
 import { Follow } from './follow.entity';
-import { FavoriteTitle } from './favorite-title.entity';
+import { FavoriteTitle, FavoriteType } from './favorite-title.entity';
 import {
   Entity,
   Column,
@@ -38,6 +38,12 @@ export class User {
 
   @Column({ type: 'varchar', length: 280, nullable: true })
   bio: string | null;
+
+  @Column({ type: 'varchar', length: 8, nullable: true })
+  coverType: FavoriteType | null;
+
+  @Column({ type: 'int', nullable: true })
+  coverTmdbId: number | null;
 
   @OneToMany(() => Follow, follow => follow.follower)
   following: Follow[];
