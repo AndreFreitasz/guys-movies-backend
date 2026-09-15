@@ -15,8 +15,10 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
 import { TimelineService } from './timeline.service';
+import { CoverCatalogService } from './cover-catalog.service';
 import {
   CoverDto,
+  CoverOptionDto,
   FavoriteDto,
   ProfileDto,
   UserListDto,
@@ -35,6 +37,7 @@ export class ProfileController {
   constructor(
     private readonly profileService: ProfileService,
     private readonly timelineService: TimelineService,
+    private readonly coverCatalogService: CoverCatalogService,
   ) {}
 
   @Get('me/stats')
@@ -114,6 +117,14 @@ export class ProfileController {
     @Body() body: SetFavoritesDto,
   ): Promise<FavoriteDto[]> {
     return this.profileService.setFavorites(userId, body.favorites);
+  }
+
+  @Get('me/covers')
+  async covers(
+    @CurrentUser('id') userId: number,
+    @Query('q') term?: string,
+  ): Promise<CoverOptionDto[]> {
+    return this.coverCatalogService.list(userId, term);
   }
 
   @Patch('me/profile/cover')
