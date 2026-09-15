@@ -597,4 +597,89 @@ describe('ProfileService', () => {
       expect(result).toEqual({ bio: null });
     });
   });
+
+  describe('setFavorites', () => {
+    const watched = () => {
+      watchedMovieRepository.find.mockResolvedValue([
+        { idTmdb: 1 },
+        { idTmdb: 2 },
+        { idTmdb: 3 },
+        { idTmdb: 4 },
+      ]);
+      watchedSerieRepository.find.mockResolvedValue([
+        { idTmdb: 10 },
+        { idTmdb: 20 },
+        { idTmdb: 30 },
+      ]);
+    };
+
+    it('grava position por tipo', async () => {
+      watched();
+      const insert = jest.fn();
+      favoriteRepository.manager.transaction.mockImplementation(
+        async (run: (manager: unknown) => Promise<void>) =>
+          run({ delete: jest.fn(), insert }),
+      );
+      favoriteRepository.find.mockResolvedValue([]);
+
+      await service.setFavorites(7, [
+        { type: 'movie', idTmdb: 1 },
+        { type: 'serie', idTmdb: 10 },
+        { type: 'movie', idTmdb: 2 },
+        { type: 'serie', idTmdb: 20 },
+      ]);
+
+      const rows = insert.mock.calls[0][1];
+      expect(rows).toEqual([
+        { user: { id: 7 }, type: 'movie', idTmdb: 1, position: 1 },
+        { user: { id: 7 }, type: 'movie', idTmdb: 2, position: 2 },
+        { user: { id: 7 }, type: 'serie', idTmdb: 10, position: 1 },
+        { user: { id: 7 }, type: 'serie', idTmdb: 20, position: 2 },
+      ]);
+    });
+
+    it('rejeita mais de tres do mesmo tipo', async () => {
+      watched();
+
+      await expect(
+        service.setFavorites(7, [
+          { type: 'movie', idTmdb: 1 },
+          { type: 'movie', idTmdb: 2 },
+          { type: 'movie', idTmdb: 3 },
+          { type: 'movie', idTmdb: 4 },
+        ]),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('aceita tres filmes e tres series', async () => {
+      watched();
+      favoriteRepository.manager.transaction.mockImplementation(
+        async (run: (manager: unknown) => Promise<void>) =>
+          run({ delete: jest.fn(), insert: jest.fn() }),
+      );
+      favoriteRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setFavorites(7, [
+          { type: 'movie', idTmdb: 1 },
+          { type: 'movie', idTmdb: 2 },
+          { type: 'movie', idTmdb: 3 },
+          { type: 'serie', idTmdb: 10 },
+          { type: 'serie', idTmdb: 20 },
+          { type: 'serie', idTmdb: 30 },
+        ]),
+      ).resolves.toEqual([]);
+    });
+
+    it('ordena a leitura por tipo e depois posicao', async () => {
+      favoriteRepository.find.mockResolvedValue([]);
+
+      await service.setFavorites(7, []);
+
+      expect(favoriteRepository.find).toHaveBeenCalledWith({
+        where: { user: { id: 7 } },
+        order: { type: 'ASC', position: 'ASC' },
+      });
+    });
+  });
 });

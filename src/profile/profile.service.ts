@@ -94,7 +94,7 @@ export class ProfileService {
   private async resolveFavorites(userId: number): Promise<FavoriteDto[]> {
     const rows = await this.favoriteRepository.find({
       where: { user: { id: userId } },
-      order: { position: 'ASC' },
+      order: { type: 'ASC', position: 'ASC' },
     });
 
     if (rows.length === 0) return [];
@@ -389,6 +389,20 @@ export class ProfileService {
       throw new BadRequestException('Nao repita o mesmo titulo nos favoritos');
     }
 
+    const perType = favorites.reduce<Record<string, number>>(
+      (accumulator, item) => ({
+        ...accumulator,
+        [item.type]: (accumulator[item.type] ?? 0) + 1,
+      }),
+      {},
+    );
+
+    if (Object.values(perType).some(total => total > 3)) {
+      throw new BadRequestException(
+        'Escolha no maximo tres filmes e tres series',
+      );
+    }
+
     if (favorites.length > 0) {
       const [watchedMovies, watchedSeries] = await Promise.all([
         this.watchedMovieRepository.find({
@@ -419,14 +433,24 @@ export class ProfileService {
 
       if (favorites.length === 0) return;
 
+      const ordered = [
+        ...favorites.filter(item => item.type === 'movie'),
+        ...favorites.filter(item => item.type === 'serie'),
+      ];
+
+      const counters: Record<string, number> = {};
+
       await manager.insert(
         FavoriteTitle,
-        favorites.map((item, index) => ({
-          user: { id: userId },
-          type: item.type,
-          idTmdb: item.idTmdb,
-          position: index + 1,
-        })),
+        ordered.map(item => {
+          counters[item.type] = (counters[item.type] ?? 0) + 1;
+          return {
+            user: { id: userId },
+            type: item.type,
+            idTmdb: item.idTmdb,
+            position: counters[item.type],
+          };
+        }),
       );
     });
 

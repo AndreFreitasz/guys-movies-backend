@@ -19,7 +19,7 @@ export class FavoriteInputDto {
 
 export class SetFavoritesDto {
   @IsArray()
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(6)
   @ValidateNested({ each: true })
   @Type(() => FavoriteInputDto)
   favorites: FavoriteInputDto[];
