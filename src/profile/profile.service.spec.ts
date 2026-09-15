@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
 import { encodeCursor } from './cursor';
@@ -784,6 +788,72 @@ it('resolve a capa e a data de entrada', async () => {
       await expect(
         service.setCover(7, { type: 'movie', idTmdb: 42 }),
       ).resolves.toBeNull();
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('salva bio, nome e nome de usuario', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      userRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateProfile(7, {
+        bio: '  Só filme bom  ',
+        name: '  André Freitas  ',
+        username: '  DreFreitas  ',
+      });
+
+      expect(userRepository.update).toHaveBeenCalledWith(7, {
+        bio: 'Só filme bom',
+        name: 'André Freitas',
+        username: 'DreFreitas',
+      });
+      expect(result).toEqual({
+        bio: 'Só filme bom',
+        name: 'André Freitas',
+        username: 'DreFreitas',
+      });
+    });
+
+    it('rejeita nome de usuario ja usado por outra pessoa', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 99 });
+
+      await expect(
+        service.updateProfile(7, { username: 'andre' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(userRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('aceita o mesmo nome de usuario trocando so as maiusculas', async () => {
+      userRepository.findOne.mockResolvedValue({ id: 7 });
+      userRepository.update.mockResolvedValue({ affected: 1 });
+
+      await expect(
+        service.updateProfile(7, { username: 'ANDRE' }),
+      ).resolves.toEqual({ username: 'ANDRE' });
+    });
+
+    it('converte violacao de unicidade do banco em conflito', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      userRepository.update.mockRejectedValue({ code: '23505' });
+
+      await expect(
+        service.updateProfile(7, { username: 'andre' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rejeita nome de usuario em branco', async () => {
+      await expect(
+        service.updateProfile(7, { username: '   ' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('nao toca em campos que nao vieram', async () => {
+      userRepository.update.mockResolvedValue({ affected: 1 });
+
+      const result = await service.updateProfile(7, { bio: null });
+
+      expect(userRepository.update).toHaveBeenCalledWith(7, { bio: null });
+      expect(result).toEqual({ bio: null });
     });
   });
 });

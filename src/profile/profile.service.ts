@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -481,6 +482,63 @@ export class ProfileService {
     await this.userRepository.update(userId, { bio: value });
 
     return { bio: value };
+  }
+
+  private async assertUsernameFree(
+    userId: number,
+    username: string,
+  ): Promise<void> {
+    const taken = await this.userRepository.findOne({
+      where: { username: ILike(username) },
+      select: ['id'],
+    });
+
+    if (taken && taken.id !== userId) {
+      throw new ConflictException('Esse nome de usuario ja esta em uso');
+    }
+  }
+
+  async updateProfile(
+    userId: number,
+    changes: { bio?: string | null; name?: string; username?: string },
+  ): Promise<{ bio?: string | null; name?: string; username?: string }> {
+    const patch: { bio?: string | null; name?: string; username?: string } = {};
+
+    if ('bio' in changes) {
+      const trimmed =
+        typeof changes.bio === 'string' ? changes.bio.trim() : null;
+      patch.bio = trimmed && trimmed.length > 0 ? trimmed : null;
+    }
+
+    if (changes.name !== undefined) {
+      const name = changes.name.trim();
+      if (name.length === 0) {
+        throw new BadRequestException('O nome nao pode ficar vazio');
+      }
+      patch.name = name;
+    }
+
+    if (changes.username !== undefined) {
+      const username = changes.username.trim();
+      if (username.length === 0) {
+        throw new BadRequestException('O nome de usuario nao pode ficar vazio');
+      }
+      await this.assertUsernameFree(userId, username);
+      patch.username = username;
+    }
+
+    if (Object.keys(patch).length === 0) return {};
+
+    try {
+      await this.userRepository.update(userId, patch);
+    } catch (caught) {
+      if ((caught as { code?: string }).code === UNIQUE_VIOLATION) {
+        throw new ConflictException('Esse nome de usuario ja esta em uso');
+      }
+      throw caught;
+    }
+
+    return patch;
   }
 
   async setFavorites(

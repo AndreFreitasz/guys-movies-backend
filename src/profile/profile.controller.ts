@@ -107,8 +107,8 @@ export class ProfileController {
   async updateProfile(
     @CurrentUser('id') userId: number,
     @Body() body: UpdateProfileDto,
-  ): Promise<{ bio: string | null }> {
-    return this.profileService.updateBio(userId, body.bio);
+  ): Promise<{ bio?: string | null; name?: string; username?: string }> {
+    return this.profileService.updateProfile(userId, body);
   }
 
   @Put('me/profile/favorites')
