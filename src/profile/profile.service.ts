@@ -14,6 +14,7 @@ import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
 import {
+  CoverDto,
   FavoriteDto,
   FavoriteType,
   ProfileCountsDto,
@@ -145,6 +146,90 @@ export class ProfileService {
     }, []);
   }
 
+  private isoOf(date: Date | null | undefined): string | null {
+    if (!date) return null;
+    const parsed = new Date(date);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
+
+  private async resolveCover(
+    type: FavoriteType | null,
+    idTmdb: number | null,
+  ): Promise<CoverDto | null> {
+    if (!type || !idTmdb) return null;
+
+    if (type === 'movie') {
+      const [movie] = await this.movieRepository.find({
+        where: { idTmdb },
+        take: 1,
+      });
+      if (!movie) return null;
+      return {
+        type,
+        idTmdb,
+        title: movie.title,
+        backdropPath: movie.backdropPath ?? null,
+      };
+    }
+
+    const [serie] = await this.serieRepository.find({
+      where: { idTmdb },
+      take: 1,
+    });
+    if (!serie) return null;
+    return {
+      type,
+      idTmdb,
+      title: serie.name,
+      backdropPath: serie.backdropPath ?? null,
+    };
+  }
+
+  private async assertWatched(
+    userId: number,
+    type: FavoriteType,
+    idTmdb: number,
+  ): Promise<void> {
+    const rows =
+      type === 'movie'
+        ? await this.watchedMovieRepository.find({
+            where: { idUser: { id: userId } },
+            select: { idTmdb: true },
+          })
+        : await this.watchedSerieRepository.find({
+            where: { user: { id: userId } },
+            select: { idTmdb: true },
+          });
+
+    if (!rows.some(row => row.idTmdb === idTmdb)) {
+      throw new BadRequestException(
+        'So e possivel usar como capa um titulo que voce marcou como assistido',
+      );
+    }
+  }
+
+  async setCover(
+    userId: number,
+    cover: { type: FavoriteType; idTmdb: number } | null,
+  ): Promise<CoverDto | null> {
+    if (!cover) {
+      await this.userRepository.update(userId, {
+        coverType: null,
+        coverTmdbId: null,
+      });
+      return null;
+    }
+
+    await this.assertWatched(userId, cover.type, cover.idTmdb);
+
+    await this.userRepository.update(userId, {
+      coverType: cover.type,
+      coverTmdbId: cover.idTmdb,
+    });
+
+    return this.resolveCover(cover.type, cover.idTmdb);
+  }
+
   private async resolveCounts(userId: number): Promise<ProfileCountsDto> {
     const [followers, following, movies, seasons] = await Promise.all([
       this.followRepository.count({ where: { following: { id: userId } } }),
@@ -170,7 +255,15 @@ export class ProfileService {
   async getProfile(viewerId: number, username: string): Promise<ProfileDto> {
     const owner = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id', 'username', 'name', 'bio'],
+      select: [
+        'id',
+        'username',
+        'name',
+        'bio',
+        'createdAt',
+        'coverType',
+        'coverTmdbId',
+      ],
     });
 
     if (!owner) {
@@ -179,22 +272,30 @@ export class ProfileService {
 
     const isSelf = owner.id === viewerId;
 
-    const [counts, favorites, followingRow, followsYouRow] = await Promise.all([
-      this.resolveCounts(owner.id),
-      this.resolveFavorites(owner.id),
-      isSelf
-        ? Promise.resolve(null)
-        : this.followRepository.findOne({
-            where: { follower: { id: viewerId }, following: { id: owner.id } },
-            select: ['id'],
-          }),
-      isSelf
-        ? Promise.resolve(null)
-        : this.followRepository.findOne({
-            where: { follower: { id: owner.id }, following: { id: viewerId } },
-            select: ['id'],
-          }),
-    ]);
+    const [counts, favorites, cover, followingRow, followsYouRow] =
+      await Promise.all([
+        this.resolveCounts(owner.id),
+        this.resolveFavorites(owner.id),
+        this.resolveCover(owner.coverType, owner.coverTmdbId),
+        isSelf
+          ? Promise.resolve(null)
+          : this.followRepository.findOne({
+              where: {
+                follower: { id: viewerId },
+                following: { id: owner.id },
+              },
+              select: ['id'],
+            }),
+        isSelf
+          ? Promise.resolve(null)
+          : this.followRepository.findOne({
+              where: {
+                follower: { id: owner.id },
+                following: { id: viewerId },
+              },
+              select: ['id'],
+            }),
+      ]);
 
     return {
       id: owner.id,
@@ -206,6 +307,8 @@ export class ProfileService {
       followsYou: Boolean(followsYouRow),
       counts,
       favorites,
+      cover,
+      joinedAt: this.isoOf(owner.createdAt),
     };
   }
 

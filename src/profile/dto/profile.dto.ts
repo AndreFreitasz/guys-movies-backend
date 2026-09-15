@@ -11,6 +11,20 @@ export class FavoriteDto {
   position: number;
 }
 
+export class CoverDto {
+  type: FavoriteType;
+  idTmdb: number;
+  title: string;
+  backdropPath: string | null;
+}
+
+export class CoverOptionDto {
+  type: FavoriteType;
+  idTmdb: number;
+  title: string;
+  backdropPath: string | null;
+}
+
 export class ProfileCountsDto {
   followers: number;
   following: number;
@@ -28,6 +42,8 @@ export class ProfileDto {
   followsYou: boolean;
   counts: ProfileCountsDto;
   favorites: FavoriteDto[];
+  cover: CoverDto | null;
+  joinedAt: string | null;
 }
 
 export class UserSummaryDto {

@@ -228,6 +228,42 @@ describe('ProfileService', () => {
       expect(profile.followsYou).toBe(false);
     });
 
+it('resolve a capa e a data de entrada', async () => {
+      userRepository.findOne.mockResolvedValue({
+        ...owner,
+        createdAt: new Date('2024-03-08T12:00:00.000Z'),
+        coverType: 'movie',
+        coverTmdbId: 603,
+      });
+      watchedMovieRepository.count.mockResolvedValue(0);
+      watchedSeasonRepository.find.mockResolvedValue([]);
+      followRepository.count.mockResolvedValue(0);
+      followRepository.findOne.mockResolvedValue(null);
+      favoriteRepository.find.mockResolvedValue([]);
+      movieRepository.find.mockResolvedValue([
+        { idTmdb: 603, title: 'Matrix', backdropPath: '/bd.jpg' },
+      ]);
+
+      const profile = await service.getProfile(1, 'andre');
+
+      expect(profile.cover).toEqual({
+        type: 'movie',
+        idTmdb: 603,
+        title: 'Matrix',
+        backdropPath: '/bd.jpg',
+      });
+      expect(profile.joinedAt).toBe('2024-03-08T12:00:00.000Z');
+    });
+
+    it('devolve capa nula quando o usuario nao escolheu nenhuma', async () => {
+      userRepository.findOne.mockResolvedValue(owner);
+      stubCounts();
+
+      const profile = await service.getProfile(9, 'andre');
+
+      expect(profile.cover).toBeNull();
+    });
+
     it('resolve titulo e ano dos favoritos e preserva a ordem', async () => {
       userRepository.findOne.mockResolvedValue(owner);
       watchedMovieRepository.count.mockResolvedValue(0);
@@ -680,6 +716,74 @@ describe('ProfileService', () => {
         where: { user: { id: 7 } },
         order: { type: 'ASC', position: 'ASC' },
       });
+    });
+  });
+
+  describe('setCover', () => {
+    it('rejeita titulo que nao esta nos assistidos', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 1 }]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setCover(7, { type: 'movie', idTmdb: 999 }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('limpa a capa quando recebe null', async () => {
+      userRepository.update.mockResolvedValue({});
+
+      await expect(service.setCover(7, null)).resolves.toBeNull();
+      expect(userRepository.update).toHaveBeenCalledWith(7, {
+        coverType: null,
+        coverTmdbId: null,
+      });
+    });
+
+    it('grava e devolve a capa resolvida', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 42 }]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+      userRepository.update.mockResolvedValue({});
+      movieRepository.find.mockResolvedValue([
+        { idTmdb: 42, title: 'Duna', backdropPath: '/a.jpg' },
+      ]);
+
+      await expect(
+        service.setCover(7, { type: 'movie', idTmdb: 42 }),
+      ).resolves.toEqual({
+        type: 'movie',
+        idTmdb: 42,
+        title: 'Duna',
+        backdropPath: '/a.jpg',
+      });
+    });
+
+    it('resolve capa de serie pelo nome', async () => {
+      watchedMovieRepository.find.mockResolvedValue([]);
+      watchedSerieRepository.find.mockResolvedValue([{ idTmdb: 99 }]);
+      userRepository.update.mockResolvedValue({});
+      serieRepository.find.mockResolvedValue([
+        { idTmdb: 99, name: 'Severance', backdropPath: null },
+      ]);
+
+      await expect(
+        service.setCover(7, { type: 'serie', idTmdb: 99 }),
+      ).resolves.toEqual({
+        type: 'serie',
+        idTmdb: 99,
+        title: 'Severance',
+        backdropPath: null,
+      });
+    });
+
+    it('devolve null quando o registro local sumiu', async () => {
+      watchedMovieRepository.find.mockResolvedValue([{ idTmdb: 42 }]);
+      watchedSerieRepository.find.mockResolvedValue([]);
+      userRepository.update.mockResolvedValue({});
+      movieRepository.find.mockResolvedValue([]);
+
+      await expect(
+        service.setCover(7, { type: 'movie', idTmdb: 42 }),
+      ).resolves.toBeNull();
     });
   });
 });

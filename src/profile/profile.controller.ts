@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { ProfileService } from './profile.service';
 import { TimelineService } from './timeline.service';
 import {
+  CoverDto,
   FavoriteDto,
   ProfileDto,
   UserListDto,
@@ -24,6 +25,7 @@ import {
 } from './dto/profile.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SetFavoritesDto } from './dto/set-favorites.dto';
+import { SetCoverDto } from './dto/set-cover.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -112,6 +114,14 @@ export class ProfileController {
     @Body() body: SetFavoritesDto,
   ): Promise<FavoriteDto[]> {
     return this.profileService.setFavorites(userId, body.favorites);
+  }
+
+  @Patch('me/profile/cover')
+  async setCover(
+    @CurrentUser('id') userId: number,
+    @Body() body: SetCoverDto,
+  ): Promise<CoverDto | null> {
+    return this.profileService.setCover(userId, body.cover ?? null);
   }
 
   @Get('profiles/:username/timeline')
