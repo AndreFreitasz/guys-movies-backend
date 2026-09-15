@@ -44,6 +44,7 @@ export class ProfileDto {
   favorites: FavoriteDto[];
   cover: CoverDto | null;
   joinedAt: string | null;
+  avatarUpdatedAt: string | null;
 }
 
 export class UserSummaryDto {
@@ -51,6 +52,7 @@ export class UserSummaryDto {
   name: string;
   isSelf: boolean;
   isFollowing: boolean;
+  avatarUpdatedAt: string | null;
 }
 
 export class UserListDto {

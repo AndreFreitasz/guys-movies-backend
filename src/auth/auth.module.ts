@@ -5,10 +5,12 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { ProfileModule } from '../profile/profile.module';
 
 @Module({
   imports: [
     UsersModule,
+    ProfileModule,
     JwtModule.registerAsync({
       global: true,
       imports: [ConfigModule],

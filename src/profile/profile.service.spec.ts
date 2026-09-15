@@ -16,6 +16,7 @@ import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 
 describe('ProfileService', () => {
   let service: ProfileService;
@@ -36,6 +37,7 @@ describe('ProfileService', () => {
   let watchedSeasonRepository: { find: jest.Mock };
   let movieRepository: { find: jest.Mock };
   let serieRepository: { find: jest.Mock };
+  let avatarRepository: { find: jest.Mock };
 
   beforeEach(async () => {
     userRepository = { findOne: jest.fn(), update: jest.fn() };
@@ -55,6 +57,7 @@ describe('ProfileService', () => {
     watchedSeasonRepository = { find: jest.fn() };
     movieRepository = { find: jest.fn() };
     serieRepository = { find: jest.fn() };
+    avatarRepository = { find: jest.fn().mockResolvedValue([]) };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,6 +82,10 @@ describe('ProfileService', () => {
         },
         { provide: getRepositoryToken(Movies), useValue: movieRepository },
         { provide: getRepositoryToken(Series), useValue: serieRepository },
+        {
+          provide: getRepositoryToken(UserAvatar),
+          useValue: avatarRepository,
+        },
       ],
     }).compile();
 
@@ -453,6 +460,7 @@ it('resolve a capa e a data de entrada', async () => {
       expect(result.users[0]).toEqual({
         username: 'ana',
         name: 'ANA',
+        avatarUpdatedAt: null,
         isSelf: false,
         isFollowing: true,
       });

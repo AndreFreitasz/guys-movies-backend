@@ -14,6 +14,9 @@ import { Series } from '../serie/entities/series.entity';
 import { MovieModule } from '../movie/movie.module';
 import { SerieModule } from '../serie/serie.module';
 import { CoverCatalogService } from './cover-catalog.service';
+import { AvatarService } from './avatar.service';
+import { AvatarController } from './avatar.controller';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 
 @Module({
   imports: [
@@ -26,11 +29,18 @@ import { CoverCatalogService } from './cover-catalog.service';
       WatchedSeason,
       Movies,
       Series,
+      UserAvatar,
     ]),
     MovieModule,
     SerieModule,
   ],
-  controllers: [ProfileController],
-  providers: [ProfileService, TimelineService, CoverCatalogService],
+  controllers: [ProfileController, AvatarController],
+  providers: [
+    ProfileService,
+    TimelineService,
+    CoverCatalogService,
+    AvatarService,
+  ],
+  exports: [AvatarService],
 })
 export class ProfileModule {}

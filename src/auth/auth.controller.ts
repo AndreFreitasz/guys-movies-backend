@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { AvatarService } from '../profile/avatar.service';
 import { LoginDto } from './dto/login.dto';
 import { CookieOptions, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
@@ -18,7 +19,10 @@ const buildCookieOptions = (): CookieOptions => ({
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly avatarService: AvatarService,
+  ) {}
 
   @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -40,11 +44,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async getProfile(@CurrentUser() currentUser: AuthenticatedUser) {
     const user = await this.authService.getProfileById(currentUser.id);
+    const avatar = await this.avatarService.findByUsername(user.username);
+
     return {
       id: user.id,
       username: user.username,
       email: user.email,
       name: user.name,
+      avatarUpdatedAt: avatar
+        ? new Date(avatar.updatedAt).toISOString()
+        : null,
     };
   }
 

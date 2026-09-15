@@ -14,6 +14,7 @@ import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 import {
   CoverDto,
   FavoriteDto,
@@ -48,6 +49,8 @@ export class ProfileService {
     private readonly movieRepository: Repository<Movies>,
     @InjectRepository(Series)
     private readonly serieRepository: Repository<Series>,
+    @InjectRepository(UserAvatar)
+    private readonly avatarRepository: Repository<UserAvatar>,
   ) {}
 
   async getStats(userId: number): Promise<UserStatsDto> {
@@ -145,6 +148,21 @@ export class ProfileService {
       }
       return accumulator;
     }, []);
+  }
+
+  private async avatarStampsFor(
+    userIds: number[],
+  ): Promise<Map<number, string>> {
+    if (userIds.length === 0) return new Map();
+
+    const rows = await this.avatarRepository.find({
+      where: { userId: In(userIds) },
+      select: { userId: true, updatedAt: true },
+    });
+
+    return new Map(
+      rows.map(row => [row.userId, new Date(row.updatedAt).toISOString()]),
+    );
   }
 
   private isoOf(date: Date | null | undefined): string | null {
@@ -273,11 +291,12 @@ export class ProfileService {
 
     const isSelf = owner.id === viewerId;
 
-    const [counts, favorites, cover, followingRow, followsYouRow] =
+    const [counts, favorites, cover, avatarStamps, followingRow, followsYouRow] =
       await Promise.all([
         this.resolveCounts(owner.id),
         this.resolveFavorites(owner.id),
         this.resolveCover(owner.coverType, owner.coverTmdbId),
+        this.avatarStampsFor([owner.id]),
         isSelf
           ? Promise.resolve(null)
           : this.followRepository.findOne({
@@ -310,6 +329,7 @@ export class ProfileService {
       favorites,
       cover,
       joinedAt: this.isoOf(owner.createdAt),
+      avatarUpdatedAt: avatarStamps.get(owner.id) ?? null,
     };
   }
 
@@ -416,6 +436,12 @@ export class ProfileService {
     const hasMore = rows.length > pageSize;
     const page = hasMore ? rows.slice(0, pageSize) : rows;
 
+    const stamps = await this.avatarStampsFor(
+      page.map(row =>
+        direction === 'followers' ? row.follower.id : row.following.id,
+      ),
+    );
+
     const users = await Promise.all(
       page.map(async row => {
         const person = direction === 'followers' ? row.follower : row.following;
@@ -435,6 +461,7 @@ export class ProfileService {
           name: person.name,
           isSelf,
           isFollowing: Boolean(relation),
+          avatarUpdatedAt: stamps.get(person.id) ?? null,
         };
       }),
     );
