@@ -17,6 +17,9 @@ import { CoverCatalogService } from './cover-catalog.service';
 import { AvatarService } from './avatar.service';
 import { AvatarController } from './avatar.controller';
 import { UserAvatar } from '../users/entities/user-avatar.entity';
+import { WatchTogether } from '../users/entities/watch-together.entity';
+import { WatchTogetherService } from './watch-together.service';
+import { WatchTogetherController } from './watch-together.controller';
 
 @Module({
   imports: [
@@ -30,16 +33,22 @@ import { UserAvatar } from '../users/entities/user-avatar.entity';
       Movies,
       Series,
       UserAvatar,
+      WatchTogether,
     ]),
     MovieModule,
     SerieModule,
   ],
-  controllers: [ProfileController, AvatarController],
+  controllers: [
+    ProfileController,
+    AvatarController,
+    WatchTogetherController,
+  ],
   providers: [
     ProfileService,
     TimelineService,
     CoverCatalogService,
     AvatarService,
+    WatchTogetherService,
   ],
   exports: [AvatarService],
 })
