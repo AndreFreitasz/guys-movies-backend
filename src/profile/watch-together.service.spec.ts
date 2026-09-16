@@ -19,6 +19,7 @@ describe('WatchTogetherService', () => {
   let linkRepository: {
     findOne: jest.Mock;
     find: jest.Mock;
+    count: jest.Mock;
     insert: jest.Mock;
     update: jest.Mock;
     delete: jest.Mock;
@@ -40,6 +41,7 @@ describe('WatchTogetherService', () => {
     linkRepository = {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
       insert: jest.fn().mockResolvedValue({}),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),

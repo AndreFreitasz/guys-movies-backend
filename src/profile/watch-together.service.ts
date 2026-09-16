@@ -178,6 +178,12 @@ export class WatchTogetherService {
     }
   }
 
+  async countPending(userId: number): Promise<number> {
+    return this.linkRepository.count({
+      where: { companionId: userId, status: 'pending' },
+    });
+  }
+
   async listPending(userId: number): Promise<WatchTogether[]> {
     return this.linkRepository.find({
       where: { companionId: userId, status: 'pending' },

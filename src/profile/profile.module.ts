@@ -50,6 +50,6 @@ import { WatchTogetherController } from './watch-together.controller';
     AvatarService,
     WatchTogetherService,
   ],
-  exports: [AvatarService],
+  exports: [AvatarService, WatchTogetherService],
 })
 export class ProfileModule {}

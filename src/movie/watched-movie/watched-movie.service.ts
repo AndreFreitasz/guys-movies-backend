@@ -7,6 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  WatchTogetherService,
+  titleKey,
+} from '../../profile/watch-together.service';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { Equal, Repository } from 'typeorm';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
@@ -33,6 +37,7 @@ export class WatchedMovieService {
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     private readonly createdMovieService: CreatedMovieService,
     private readonly movieService: MovieService,
+    private readonly watchTogetherService: WatchTogetherService,
   ) {}
 
   private assertWatchSource(dto: {
@@ -185,7 +190,7 @@ export class WatchedMovieService {
     }
   }
 
-  private toListItem(watched: WatchedMovie): WatchedMovieListItemDto {
+  private toListItem(watched: WatchedMovie): Omit<WatchedMovieListItemDto, 'companions'> {
     return {
       idTmdb: watched.idTmdb,
       title: watched.idMovie?.title ?? null,
@@ -229,9 +234,12 @@ export class WatchedMovieService {
         availabilityFailed = failures.value;
       }
 
-      const items: WatchedMovieListItemDto[] = watchedMovies.map(watched =>
-        this.toListItem(watched),
-      );
+      const companions = await this.watchTogetherService.companionsFor(userId);
+
+      const items: WatchedMovieListItemDto[] = watchedMovies.map(watched => ({
+        ...this.toListItem(watched),
+        companions: companions.get(titleKey('movie', watched.idTmdb, null)) ?? [],
+      }));
 
       const ratings = items
         .map(item => item.rating)
@@ -343,7 +351,13 @@ export class WatchedMovieService {
     watchedMovie.watchedAt = watchedAt ? new Date(watchedAt) : null;
     await this.watchedMovieRepository.save(watchedMovie);
 
-    return this.toListItem(watchedMovie);
+    const companions = await this.watchTogetherService.companionsFor(userId);
+
+    return {
+      ...this.toListItem(watchedMovie),
+      companions:
+        companions.get(titleKey('movie', watchedMovie.idTmdb, null)) ?? [],
+    };
   }
 
   async rateMovie(

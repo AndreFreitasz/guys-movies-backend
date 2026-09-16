@@ -1,3 +1,5 @@
+import { UserSummaryDto } from '../../profile/dto/profile.dto';
+
 export class WatchedMovieListItemDto {
   idTmdb: number;
   title: string | null;
@@ -11,6 +13,7 @@ export class WatchedMovieListItemDto {
   createdAt: string;
   providerId: number | null;
   watchSource: string | null;
+  companions: UserSummaryDto[];
 }
 
 export class WatchedMovieStatsDto {
