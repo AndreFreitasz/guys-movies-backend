@@ -40,12 +40,15 @@ export class WatchTogetherController {
     @CurrentUser('id') userId: number,
   ): Promise<PendingCompanionDto[]> {
     const rows = await this.watchTogetherService.listPending(userId);
+    const titles = await this.watchTogetherService.titlesFor(rows);
 
     return rows.map(row => ({
       id: row.id,
       type: row.type,
       idTmdb: row.idTmdb,
       seasonNumber: row.seasonNumber,
+      title: titles.get(`${row.type}:${row.idTmdb}`)?.title ?? 'Titulo indisponivel',
+      posterPath: titles.get(`${row.type}:${row.idTmdb}`)?.posterPath ?? null,
       watchedAt: row.watchedAt,
       requester: {
         username: row.requester?.username ?? '',

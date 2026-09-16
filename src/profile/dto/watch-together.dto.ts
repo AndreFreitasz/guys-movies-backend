@@ -40,6 +40,8 @@ export class PendingCompanionDto {
   type: 'movie' | 'serie';
   idTmdb: number;
   seasonNumber: number | null;
+  title: string;
+  posterPath: string | null;
   watchedAt: string | null;
   requester: {
     username: string;

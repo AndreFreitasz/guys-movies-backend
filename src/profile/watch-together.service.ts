@@ -13,6 +13,8 @@ import {
 import { User } from '../users/entities/user.entity';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
+import { Movies } from '../movie/entities/movies.entity';
+import { Series } from '../serie/entities/series.entity';
 import { UserSummaryDto } from './dto/profile.dto';
 
 const UNIQUE_VIOLATION = '23505';
@@ -41,7 +43,44 @@ export class WatchTogetherService {
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     @InjectRepository(WatchedSeason)
     private readonly watchedSeasonRepository: Repository<WatchedSeason>,
+    @InjectRepository(Movies)
+    private readonly movieRepository: Repository<Movies>,
+    @InjectRepository(Series)
+    private readonly serieRepository: Repository<Series>,
   ) {}
+
+  async titlesFor(
+    rows: { type: string; idTmdb: number }[],
+  ): Promise<Map<string, { title: string; posterPath: string | null }>> {
+    const movieIds = rows.filter(r => r.type === 'movie').map(r => r.idTmdb);
+    const serieIds = rows.filter(r => r.type === 'serie').map(r => r.idTmdb);
+
+    const [movies, series] = await Promise.all([
+      movieIds.length
+        ? this.movieRepository.find({ where: { idTmdb: In(movieIds) } })
+        : Promise.resolve([]),
+      serieIds.length
+        ? this.serieRepository.find({ where: { idTmdb: In(serieIds) } })
+        : Promise.resolve([]),
+    ]);
+
+    const map = new Map<string, { title: string; posterPath: string | null }>();
+
+    movies.forEach(movie =>
+      map.set(`movie:${movie.idTmdb}`, {
+        title: movie.title,
+        posterPath: movie.posterPath ?? null,
+      }),
+    );
+    series.forEach(serie =>
+      map.set(`serie:${serie.idTmdb}`, {
+        title: serie.name,
+        posterPath: serie.posterPath ?? null,
+      }),
+    );
+
+    return map;
+  }
 
   private async findOwnWatch(
     userId: number,
