@@ -520,7 +520,7 @@ export class ProfileService {
 
     const [rows, total] = await this.userRepository
       .createQueryBuilder('user')
-      .where('user."searchName" LIKE :pattern', {
+      .where('user.searchName LIKE :pattern', {
         pattern: `%${term}%`,
         term,
         exact: term,
@@ -529,8 +529,8 @@ export class ProfileService {
       .andWhere('user.id <> :viewerId', { viewerId })
       .orderBy(
         `CASE
-           WHEN user."searchName" = :exact THEN 1
-           WHEN user."searchName" LIKE :prefix THEN 2
+           WHEN user.searchName = :exact THEN 1
+           WHEN user.searchName LIKE :prefix THEN 2
            ELSE 3
          END`,
         'ASC',
