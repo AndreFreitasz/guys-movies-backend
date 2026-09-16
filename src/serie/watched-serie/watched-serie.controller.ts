@@ -41,7 +41,7 @@ export class WatchedSerieController {
     @Body() body: MarkWatchedSerieDto,
   ) {
     const message = await this.watchedSerieService.markAsWatched(
-      new Date(body.watchedAt),
+      body.watchedAt ? new Date(body.watchedAt) : null,
       userId,
       body.createSerieDto,
     );
