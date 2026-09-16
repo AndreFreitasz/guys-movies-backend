@@ -255,6 +255,24 @@ export class WatchedSerieService {
     }
   }
 
+  private unionSeasonCompanions(
+    idTmdb: number,
+    seasons: WatchedSeason[],
+    companions: Map<string, UserSummaryDto[]>,
+  ): UserSummaryDto[] {
+    const byUsername = new Map<string, UserSummaryDto>();
+
+    seasons
+      .filter(season => season.idTmdb === idTmdb)
+      .forEach(season =>
+        (
+          companions.get(titleKey('serie', idTmdb, season.seasonNumber)) ?? []
+        ).forEach(person => byUsername.set(person.username, person)),
+      );
+
+    return Array.from(byUsername.values());
+  }
+
   private buildListItem(
     watched: WatchedSerie,
     seasons: WatchedSeason[],
@@ -262,17 +280,9 @@ export class WatchedSerieService {
   ): WatchedSerieListItemDto {
     const own = seasons.filter(season => season.idTmdb === watched.idTmdb);
 
-    const byUsername = new Map<string, UserSummaryDto>();
-    own.forEach(season =>
-      (
-        companions.get(titleKey('serie', watched.idTmdb, season.seasonNumber)) ??
-        []
-      ).forEach(person => byUsername.set(person.username, person)),
-    );
-
     return {
       ...this.toListItem(watched),
-      companions: Array.from(byUsername.values()),
+      companions: this.unionSeasonCompanions(watched.idTmdb, own, companions),
       watchedSeasons: own.length,
       watchedEpisodes: own.reduce(
         (total, season) => total + (season.episodeCount ?? 0),
@@ -413,6 +423,7 @@ export class WatchedSerieService {
       episodeCount: number;
       watchedAt: string | null;
     }[];
+    companions: UserSummaryDto[];
   }> {
     try {
       const watchedSerie = await this.watchedSerieRepository.findOne({
@@ -442,6 +453,13 @@ export class WatchedSerieService {
             ? new Date(season.watchedAt).toISOString()
             : null,
         })),
+        companions: watchedSerie
+          ? this.unionSeasonCompanions(
+              idTmdb,
+              seasons,
+              await this.watchTogetherService.companionsFor(userId),
+            )
+          : [],
       };
     } catch (error) {
       throw new HttpException(
