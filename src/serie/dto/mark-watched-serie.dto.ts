@@ -1,10 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsDateString, IsObject, ValidateNested } from 'class-validator';
+import {
+  IsDateString,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+} from 'class-validator';
 import { CreatedSerieDto } from './created-serie.dto';
 
 export class MarkWatchedSerieDto {
+  @IsOptional()
   @IsDateString()
-  watchedAt: string;
+  watchedAt?: string | null;
 
   @IsObject()
   @ValidateNested()

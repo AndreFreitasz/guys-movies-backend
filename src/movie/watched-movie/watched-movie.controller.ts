@@ -34,7 +34,7 @@ export class WatchedMovieController {
     @Body() body: MarkWatchedMovieDto,
   ) {
     const message = await this.watchedMovieService.markAsWatched(
-      new Date(body.watchedAt),
+      body.watchedAt ? new Date(body.watchedAt) : null,
       userId,
       body.createMovieDto,
     );

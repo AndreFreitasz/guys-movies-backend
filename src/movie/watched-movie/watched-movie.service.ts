@@ -86,7 +86,7 @@ export class WatchedMovieService {
   }
 
   async markAsWatched(
-    watchedAt: Date,
+    watchedAt: Date | null,
     userId: number,
     createMovieDto: CreatedMovieDto,
   ): Promise<string> {
