@@ -916,6 +916,27 @@ it('resolve a capa e a data de entrada', async () => {
       expect(userRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
 
+it('usa a sintaxe de propriedade do TypeORM, nunca o alias citado a mao', async () => {
+      stubRows([]);
+
+      await service.searchMembers(7, 'andre');
+
+      const fragments = [
+        ...builder.where.mock.calls.map(call => String(call[0])),
+        ...builder.andWhere.mock.calls.map(call => String(call[0])),
+        ...builder.orderBy.mock.calls.map(call => String(call[0])),
+        ...builder.addOrderBy.mock.calls.map(call => String(call[0])),
+      ];
+
+      // "user" e palavra reservada no Postgres: user."col" vira a funcao USER
+      // seguida de ponto e estoura sintaxe. Deixar o TypeORM citar o alias.
+      fragments.forEach(fragment => {
+        expect(fragment).not.toMatch(/user\s*\.\s*"/);
+      });
+
+      expect(fragments.some(f => f.includes('user.searchName'))).toBe(true);
+    });
+
     it('exclui o proprio usuario da consulta', async () => {
       stubRows([]);
 
