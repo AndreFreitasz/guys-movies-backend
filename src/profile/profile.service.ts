@@ -24,7 +24,14 @@ import {
   UserListDto,
   UserStatsDto,
 } from './dto/profile.dto';
-import { encodeCursor, decodeCursor } from './cursor';
+import {
+  encodeCursor,
+  decodeCursor,
+  encodeOffsetCursor,
+  decodeOffsetCursor,
+} from './cursor';
+import { buildSearchName } from '../users/search-name';
+import { normalizeForMatch } from '../search/relevance';
 
 const UNIQUE_VIOLATION = '23505';
 const DEFAULT_PAGE_SIZE = 20;
@@ -499,6 +506,67 @@ export class ProfileService {
     return this.listRelations(viewerId, username, 'following', cursor, limit);
   }
 
+  async searchMembers(
+    viewerId: number,
+    query: string,
+    cursor?: string,
+    limit?: number,
+  ): Promise<UserListDto> {
+    const term = normalizeForMatch(query ?? '');
+    if (term.length === 0) return { users: [], nextCursor: null };
+
+    const pageSize = this.resolvePageSize(limit);
+    const offset = decodeOffsetCursor(cursor) ?? 0;
+
+    const [rows, total] = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user."searchName" LIKE :pattern', {
+        pattern: `%${term}%`,
+        term,
+        exact: term,
+        prefix: `${term}%`,
+      })
+      .andWhere('user.id <> :viewerId', { viewerId })
+      .orderBy(
+        `CASE
+           WHEN user."searchName" = :exact THEN 1
+           WHEN user."searchName" LIKE :prefix THEN 2
+           ELSE 3
+         END`,
+        'ASC',
+      )
+      .addOrderBy('user.username', 'ASC')
+      .skip(offset)
+      .take(pageSize)
+      .getManyAndCount();
+
+    const stamps = await this.avatarStampsFor(rows.map(row => row.id));
+
+    const users = await Promise.all(
+      rows.map(async person => {
+        const relation = await this.followRepository.findOne({
+          where: { follower: { id: viewerId }, following: { id: person.id } },
+          select: ['id'],
+        });
+
+        return {
+          username: person.username,
+          name: person.name,
+          isSelf: false,
+          isFollowing: Boolean(relation),
+          avatarUpdatedAt: stamps.get(person.id) ?? null,
+        };
+      }),
+    );
+
+    const consumed = offset + rows.length;
+
+    return {
+      users,
+      nextCursor: consumed < total ? encodeOffsetCursor(consumed) : null,
+    };
+  }
+
   async updateBio(
     userId: number,
     bio: string | null,
@@ -556,8 +624,22 @@ export class ProfileService {
 
     if (Object.keys(patch).length === 0) return {};
 
+    const columns: typeof patch & { searchName?: string } = { ...patch };
+
+    if (patch.name !== undefined || patch.username !== undefined) {
+      const owner = await this.userRepository.findOne({
+        where: { id: userId },
+        select: ['name', 'username'],
+      });
+
+      columns.searchName = buildSearchName(
+        patch.name ?? owner?.name,
+        patch.username ?? owner?.username,
+      );
+    }
+
     try {
-      await this.userRepository.update(userId, patch);
+      await this.userRepository.update(userId, columns);
     } catch (caught) {
       if ((caught as { code?: string }).code === UNIQUE_VIOLATION) {
         throw new ConflictException('Esse nome de usuario ja esta em uso');

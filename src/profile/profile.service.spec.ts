@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
-import { encodeCursor } from './cursor';
+import {
+  encodeCursor,
+  encodeOffsetCursor,
+  decodeOffsetCursor,
+} from './cursor';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
 import { FavoriteTitle } from '../users/entities/favorite-title.entity';
@@ -20,7 +24,11 @@ import { UserAvatar } from '../users/entities/user-avatar.entity';
 
 describe('ProfileService', () => {
   let service: ProfileService;
-  let userRepository: { findOne: jest.Mock; update: jest.Mock };
+  let userRepository: {
+    findOne: jest.Mock;
+    update: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
   let followRepository: {
     count: jest.Mock;
     findOne: jest.Mock;
@@ -38,9 +46,22 @@ describe('ProfileService', () => {
   let movieRepository: { find: jest.Mock };
   let serieRepository: { find: jest.Mock };
   let avatarRepository: { find: jest.Mock };
+  let builder: {
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
+    getManyAndCount: jest.Mock;
+  };
 
   beforeEach(async () => {
-    userRepository = { findOne: jest.fn(), update: jest.fn() };
+    userRepository = {
+      findOne: jest.fn(),
+      update: jest.fn(),
+      createQueryBuilder: jest.fn(),
+    };
     followRepository = {
       count: jest.fn(),
       findOne: jest.fn(),
@@ -58,6 +79,20 @@ describe('ProfileService', () => {
     movieRepository = { find: jest.fn() };
     serieRepository = { find: jest.fn() };
     avatarRepository = { find: jest.fn().mockResolvedValue([]) };
+    builder = {
+      where: jest.fn(),
+      andWhere: jest.fn(),
+      orderBy: jest.fn(),
+      addOrderBy: jest.fn(),
+      skip: jest.fn(),
+      take: jest.fn(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
+    Object.keys(builder).forEach(key => {
+      if (key !== 'getManyAndCount') {
+        (builder as Record<string, jest.Mock>)[key].mockReturnValue(builder);
+      }
+    });
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -814,6 +849,7 @@ it('resolve a capa e a data de entrada', async () => {
         bio: 'Só filme bom',
         name: 'André Freitas',
         username: 'DreFreitas',
+        searchName: 'andre freitas drefreitas',
       });
       expect(result).toEqual({
         bio: 'Só filme bom',
@@ -862,6 +898,90 @@ it('resolve a capa e a data de entrada', async () => {
 
       expect(userRepository.update).toHaveBeenCalledWith(7, { bio: null });
       expect(result).toEqual({ bio: null });
+    });
+  });
+
+  describe('searchMembers', () => {
+    const stubRows = (rows: unknown[], total = rows.length) => {
+      userRepository.createQueryBuilder = jest.fn(() => builder);
+      builder.getManyAndCount.mockResolvedValue([rows, total]);
+    };
+
+    it('nao consulta o banco quando a query e vazia', async () => {
+      userRepository.createQueryBuilder = jest.fn();
+
+      const result = await service.searchMembers(7, '   ');
+
+      expect(result).toEqual({ users: [], nextCursor: null });
+      expect(userRepository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('exclui o proprio usuario da consulta', async () => {
+      stubRows([]);
+
+      await service.searchMembers(7, 'andre');
+
+      const excluded = builder.andWhere.mock.calls.find(call =>
+        String(call[0]).includes('id'),
+      );
+      expect(excluded).toBeDefined();
+      expect(excluded[1]).toMatchObject({ viewerId: 7 });
+    });
+
+    it('normaliza a query antes de consultar', async () => {
+      stubRows([]);
+
+      await service.searchMembers(7, '  ANDRÉ Luís  ');
+
+      const where = builder.where.mock.calls[0];
+      expect(where[1].term).toBe('andre luis');
+    });
+
+    it('devolve os usuarios com estado de seguir resolvido', async () => {
+      stubRows([{ id: 9, username: 'ana', name: 'Ana', avatarUpdatedAt: null }]);
+      followRepository.findOne.mockResolvedValue({ id: 1 });
+      avatarRepository.find.mockResolvedValue([]);
+
+      const result = await service.searchMembers(7, 'ana');
+
+      expect(result.users).toEqual([
+        {
+          username: 'ana',
+          name: 'Ana',
+          isSelf: false,
+          isFollowing: true,
+          avatarUpdatedAt: null,
+        },
+      ]);
+    });
+
+    it('devolve nextCursor quando ha mais resultados', async () => {
+      stubRows([{ id: 9, username: 'ana', name: 'Ana' }], 50);
+      followRepository.findOne.mockResolvedValue(null);
+      avatarRepository.find.mockResolvedValue([]);
+
+      const result = await service.searchMembers(7, 'a', undefined, 1);
+
+      expect(result.nextCursor).not.toBeNull();
+      expect(decodeOffsetCursor(result.nextCursor as string)).toBe(1);
+    });
+
+    it('devolve nextCursor nulo na ultima pagina', async () => {
+      stubRows([{ id: 9, username: 'ana', name: 'Ana' }], 1);
+      followRepository.findOne.mockResolvedValue(null);
+      avatarRepository.find.mockResolvedValue([]);
+
+      const result = await service.searchMembers(7, 'a');
+
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('avanca o offset a partir do cursor recebido', async () => {
+      stubRows([], 100);
+
+      await service.searchMembers(7, 'a', encodeOffsetCursor(20));
+
+      expect(builder.skip).toHaveBeenCalledWith(20);
     });
   });
 });

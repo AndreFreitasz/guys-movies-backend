@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
+import { buildSearchName } from './search-name';
 
 const SALT_ROUNDS = 12;
 
@@ -42,6 +43,7 @@ export class UsersService {
     const user = this.usersRepository.create({
       ...createUserDto,
       password: hashedPassword,
+      searchName: buildSearchName(createUserDto.name, createUserDto.username),
     });
 
     return this.usersRepository.save(user);
