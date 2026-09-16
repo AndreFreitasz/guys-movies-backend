@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WatchedMovieService } from './watched-movie.service';
+import { WatchTogetherService } from '../../profile/watch-together.service';
 import { WatchedMovie } from '../entities/watched-movie.entity';
 import { CreatedMovieService } from '../created-movie/created-movie.service';
 import { CreatedMovieDto } from '../dto/created-movie.dto';
@@ -45,6 +46,10 @@ describe('WatchedMovieService.rateMovie', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedMovieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         { provide: CreatedMovieService, useValue: createdMovieService },
         { provide: MovieService, useValue: { getMovieData: jest.fn() } },
@@ -108,6 +113,10 @@ describe('WatchedMovieService.updateWatchedAt', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedMovieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         {
           provide: CreatedMovieService,
@@ -225,6 +234,10 @@ describe('WatchedMovieService.setWatchSource', () => {
       providers: [
         WatchedMovieService,
         {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
+        {
           provide: getRepositoryToken(WatchedMovie),
           useValue: watchedMovieRepository,
         },
@@ -339,6 +352,10 @@ describe('WatchedMovieService.markAsWatched', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedMovieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedMovie), useValue: repository },
         { provide: CreatedMovieService, useValue: createdMovieService },
         { provide: MovieService, useValue: movieService },
@@ -410,6 +427,10 @@ describe('WatchedMovieService.listWatchedMovies', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedMovieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         {
           provide: getRepositoryToken(WatchedMovie),
           useValue: watchedMovieRepository,

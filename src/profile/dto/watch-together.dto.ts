@@ -31,7 +31,7 @@ export class AcceptCompanionDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  @Max(10)
+  @Max(5)
   rating?: number;
 }
 

@@ -1,3 +1,5 @@
+import { UserSummaryDto } from '../../profile/dto/profile.dto';
+
 export class WatchedSerieListItemDto {
   idTmdb: number;
   name: string | null;
@@ -15,6 +17,7 @@ export class WatchedSerieListItemDto {
   episodeRunTime: number | null;
   providerId: number | null;
   watchSource: string | null;
+  companions: UserSummaryDto[];
 }
 
 export class SeasonProgressDto {

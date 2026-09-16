@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { WatchedSerieService } from './watched-serie.service';
+import { WatchTogetherService } from '../../profile/watch-together.service';
 import { WatchedSerie } from '../entities/watched-serie.entity';
 import { WatchedSeason } from '../entities/watched-season.entity';
 import { Series } from '../entities/series.entity';
@@ -47,6 +48,10 @@ describe('WatchedSerieService.rateSerie', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedSerieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedSerie), useValue: repository },
         {
           provide: getRepositoryToken(WatchedSeason),
@@ -124,6 +129,10 @@ describe('WatchedSerieService.updateWatchedAt', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedSerieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedSerie), useValue: repository },
         {
           provide: getRepositoryToken(WatchedSeason),
@@ -275,6 +284,10 @@ describe('WatchedSerieService.listWatchedSeries', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedSerieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         {
           provide: getRepositoryToken(WatchedSerie),
           useValue: watchedSerieRepository,
@@ -475,6 +488,10 @@ describe('WatchedSerieService.setWatchSource', () => {
       providers: [
         WatchedSerieService,
         {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
+        {
           provide: getRepositoryToken(WatchedSerie),
           useValue: watchedSerieRepository,
         },
@@ -604,6 +621,10 @@ describe('WatchedSerieService.markAsWatched', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         WatchedSerieService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(WatchedSerie), useValue: repository },
         {
           provide: getRepositoryToken(WatchedSeason),

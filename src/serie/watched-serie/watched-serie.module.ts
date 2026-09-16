@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ProfileModule } from '../../profile/profile.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WatchedSerieService } from './watched-serie.service';
 import { WatchedSerieController } from './watched-serie.controller';
@@ -11,6 +12,7 @@ import { SerieModule } from '../serie.module';
 
 @Module({
   imports: [
+    ProfileModule,
     TypeOrmModule.forFeature([WatchedSerie, WatchedSeason, User, Series]),
     CreatedSerieModule,
     SerieModule,

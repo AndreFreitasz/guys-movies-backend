@@ -35,6 +35,13 @@ export class WatchTogetherController {
     await this.watchTogetherService.tag(userId, body);
   }
 
+  @Get('pending/count')
+  async pendingCount(
+    @CurrentUser('id') userId: number,
+  ): Promise<{ count: number }> {
+    return { count: await this.watchTogetherService.countPending(userId) };
+  }
+
   @Get('pending')
   async pending(
     @CurrentUser('id') userId: number,
