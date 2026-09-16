@@ -39,6 +39,9 @@ export class User {
   @Column({ type: 'varchar', length: 280, nullable: true })
   bio: string | null;
 
+  @Column({ type: 'varchar', length: 200, default: '' })
+  searchName: string;
+
   @Column({ type: 'varchar', length: 8, nullable: true })
   coverType: FavoriteType | null;
 

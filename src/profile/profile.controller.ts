@@ -45,6 +45,21 @@ export class ProfileController {
     return this.profileService.getStats(userId);
   }
 
+  @Get('profiles')
+  async searchMembers(
+    @CurrentUser('id') viewerId: number,
+    @Query('q') query?: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+  ): Promise<UserListDto> {
+    return this.profileService.searchMembers(
+      viewerId,
+      query ?? '',
+      cursor,
+      limit ? Number.parseInt(limit, 10) : undefined,
+    );
+  }
+
   @Get('profiles/:username')
   async getProfile(
     @CurrentUser('id') viewerId: number,
