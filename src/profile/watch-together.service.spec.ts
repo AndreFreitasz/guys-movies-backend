@@ -31,8 +31,8 @@ describe('WatchTogetherService', () => {
     update: jest.Mock;
   };
   let watchedSeasonRepository: { findOne: jest.Mock; insert: jest.Mock };
-  let movieRepository: { find: jest.Mock };
-  let serieRepository: { find: jest.Mock };
+  let movieRepository: { find: jest.Mock; findOne: jest.Mock };
+  let serieRepository: { find: jest.Mock; findOne: jest.Mock };
   let avatarRepository: { find: jest.Mock };
 
   const ana = { id: 9, username: 'ana', name: 'Ana' };
@@ -56,8 +56,14 @@ describe('WatchTogetherService', () => {
       findOne: jest.fn().mockResolvedValue(null),
       insert: jest.fn().mockResolvedValue({}),
     };
-    movieRepository = { find: jest.fn().mockResolvedValue([]) };
-    serieRepository = { find: jest.fn().mockResolvedValue([]) };
+    movieRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+    };
+    serieRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+    };
     avatarRepository = { find: jest.fn().mockResolvedValue([]) };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
@@ -182,6 +188,35 @@ describe('WatchTogetherService', () => {
       expect(linkRepository.update).toHaveBeenCalledWith(
         3,
         expect.objectContaining({ status: 'accepted' }),
+      );
+    });
+
+it('grava o vinculo com o filme, senao a listagem perde titulo e poster', async () => {
+      linkRepository.findOne.mockResolvedValue(pendingLink);
+      watchedMovieRepository.findOne.mockResolvedValue(null);
+      movieRepository.findOne = jest.fn().mockResolvedValue({ id: 77 });
+
+      await service.accept(9, 3);
+
+      expect(watchedMovieRepository.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ idMovie: { id: 77 } }),
+      );
+    });
+
+    it('grava o vinculo com a serie ao aceitar uma temporada', async () => {
+      linkRepository.findOne.mockResolvedValue({
+        ...pendingLink,
+        type: 'serie',
+        seasonNumber: 2,
+        episodeCount: 8,
+      });
+      watchedSeasonRepository.findOne.mockResolvedValue(null);
+      serieRepository.findOne = jest.fn().mockResolvedValue({ id: 55 });
+
+      await service.accept(9, 3);
+
+      expect(watchedSeasonRepository.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ serie: { id: 55 } }),
       );
     });
 

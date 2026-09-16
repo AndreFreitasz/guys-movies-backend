@@ -209,8 +209,14 @@ export class WatchTogetherService {
     if (!existing) {
       if (link.type === 'movie') {
         try {
+          const movie = await this.movieRepository.findOne({
+            where: { idTmdb: link.idTmdb },
+            select: ['id'],
+          });
+
           await this.watchedMovieRepository.insert({
             idUser: { id: userId },
+            idMovie: movie ? { id: movie.id } : undefined,
             idTmdb: link.idTmdb,
             watchedAt: link.watchedAt as unknown as Date,
             rating: rating ?? null,
@@ -222,8 +228,14 @@ export class WatchTogetherService {
         }
       } else {
         try {
+          const serie = await this.serieRepository.findOne({
+            where: { idTmdb: link.idTmdb },
+            select: ['id'],
+          });
+
           await this.watchedSeasonRepository.insert({
             user: { id: userId },
+            serie: serie ? { id: serie.id } : undefined,
             idTmdb: link.idTmdb,
             seasonNumber: link.seasonNumber ?? 0,
             episodeCount: link.episodeCount ?? 0,
