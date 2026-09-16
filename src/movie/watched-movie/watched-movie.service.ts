@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { UserSummaryDto } from '../../profile/dto/profile.dto';
 import {
   WatchTogetherService,
   titleKey,
@@ -301,7 +302,11 @@ export class WatchedMovieService {
   async isWatchedMovie(
     idUser: number,
     idTmdb: number,
-  ): Promise<{ watched: boolean; watchedAt: string | null }> {
+  ): Promise<{
+    watched: boolean;
+    watchedAt: string | null;
+    companions: UserSummaryDto[];
+  }> {
     try {
       const watchedMovie = await this.watchedMovieRepository.findOne({
         where: {
@@ -310,11 +315,16 @@ export class WatchedMovieService {
         },
       });
 
+      const companions = watchedMovie
+        ? await this.watchTogetherService.companionsFor(idUser)
+        : new Map<string, UserSummaryDto[]>();
+
       return {
         watched: Boolean(watchedMovie),
         watchedAt: watchedMovie?.watchedAt
           ? new Date(watchedMovie.watchedAt).toISOString()
           : null,
+        companions: companions.get(titleKey('movie', idTmdb, null)) ?? [],
       };
     } catch (error) {
       throw new HttpException(

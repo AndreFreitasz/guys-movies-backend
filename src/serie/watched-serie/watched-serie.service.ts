@@ -7,6 +7,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import {
+  WatchTogetherService,
+  titleKey,
+} from '../../profile/watch-together.service';
 import { WatchedSerie } from '../entities/watched-serie.entity';
 import { WatchedSeason } from '../entities/watched-season.entity';
 import { Repository } from 'typeorm';
@@ -16,6 +20,7 @@ import { Series } from '../entities/series.entity';
 import { CreatedSerieService } from '../created-serie/created-serie.service';
 import { SerieService } from '../serie.service';
 import { WatchedSeasonService } from './watched-season.service';
+import { UserSummaryDto } from '../../profile/dto/profile.dto';
 import {
   WatchedSerieListDto,
   WatchedSerieListItemDto,
@@ -42,6 +47,7 @@ export class WatchedSerieService {
     private readonly createdSerieService: CreatedSerieService,
     private readonly serieService: SerieService,
     private readonly watchedSeasonService: WatchedSeasonService,
+    private readonly watchTogetherService: WatchTogetherService,
   ) {}
 
   private assertWatchSource(dto: {
@@ -196,7 +202,9 @@ export class WatchedSerieService {
     }
   }
 
-  private toListItem(watched: WatchedSerie): WatchedSerieListItemDto {
+  private toListItem(
+    watched: WatchedSerie,
+  ): Omit<WatchedSerieListItemDto, 'companions'> {
     return {
       idTmdb: watched.idTmdb,
       name: watched.serie?.name ?? null,
@@ -250,11 +258,21 @@ export class WatchedSerieService {
   private buildListItem(
     watched: WatchedSerie,
     seasons: WatchedSeason[],
+    companions: Map<string, UserSummaryDto[]> = new Map(),
   ): WatchedSerieListItemDto {
     const own = seasons.filter(season => season.idTmdb === watched.idTmdb);
 
+    const byUsername = new Map<string, UserSummaryDto>();
+    own.forEach(season =>
+      (
+        companions.get(titleKey('serie', watched.idTmdb, season.seasonNumber)) ??
+        []
+      ).forEach(person => byUsername.set(person.username, person)),
+    );
+
     return {
       ...this.toListItem(watched),
+      companions: Array.from(byUsername.values()),
       watchedSeasons: own.length,
       watchedEpisodes: own.reduce(
         (total, season) => total + (season.episodeCount ?? 0),
@@ -312,8 +330,10 @@ export class WatchedSerieService {
         })
       : seasons;
 
+    const companions = await this.watchTogetherService.companionsFor(userId);
+
     const items = watchedSeries.map(watched =>
-      this.buildListItem(watched, currentSeasons),
+      this.buildListItem(watched, currentSeasons, companions),
     );
 
     const rated = items.filter(item => item.rating !== null);
@@ -376,7 +396,9 @@ export class WatchedSerieService {
       where: { user: { id: userId }, idTmdb },
     });
 
-    return this.buildListItem(watchedSerie, seasons);
+    const companions = await this.watchTogetherService.companionsFor(userId);
+
+    return this.buildListItem(watchedSerie, seasons, companions);
   }
 
   async isWatchedSerie(
