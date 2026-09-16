@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotFoundException } from '@nestjs/common';
 import { TimelineService } from './timeline.service';
+import { WatchTogetherService } from './watch-together.service';
 import { User } from '../users/entities/user.entity';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
@@ -20,6 +21,10 @@ describe('TimelineService', () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
         TimelineService,
+        {
+          provide: WatchTogetherService,
+          useValue: { companionsFor: jest.fn().mockResolvedValue(new Map()) },
+        },
         { provide: getRepositoryToken(User), useValue: userRepository },
         {
           provide: getRepositoryToken(WatchedMovie),
@@ -168,6 +173,7 @@ describe('TimelineService', () => {
       seasonNumber: 2,
       episodeCount: 10,
       occurredAt: '2026-03-12',
+        companions: [],
     });
   });
 
@@ -264,6 +270,7 @@ describe('TimelineService', () => {
       posterPath: 'https://cdn/p.jpg',
       rating: null,
       occurredAt: '2026-03-12',
+        companions: [],
     });
   });
 });

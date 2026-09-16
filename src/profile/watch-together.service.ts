@@ -15,6 +15,7 @@ import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 import { UserSummaryDto } from './dto/profile.dto';
 
 const UNIQUE_VIOLATION = '23505';
@@ -47,6 +48,8 @@ export class WatchTogetherService {
     private readonly movieRepository: Repository<Movies>,
     @InjectRepository(Series)
     private readonly serieRepository: Repository<Series>,
+    @InjectRepository(UserAvatar)
+    private readonly avatarRepository: Repository<UserAvatar>,
   ) {}
 
   async titlesFor(
@@ -270,6 +273,26 @@ export class WatchTogetherService {
       relations: { requester: true, companion: true },
     });
 
+    const otherIds = Array.from(
+      new Set(
+        rows.map(row =>
+          row.requesterId === userId ? row.companionId : row.requesterId,
+        ),
+      ),
+    );
+
+    const stamps = new Map<number, string>();
+
+    if (otherIds.length > 0) {
+      const avatars = await this.avatarRepository.find({
+        where: { userId: In(otherIds) },
+        select: { userId: true, updatedAt: true },
+      });
+      avatars.forEach(avatar =>
+        stamps.set(avatar.userId, new Date(avatar.updatedAt).toISOString()),
+      );
+    }
+
     const map = new Map<string, UserSummaryDto[]>();
 
     rows.forEach(row => {
@@ -285,7 +308,10 @@ export class WatchTogetherService {
         name: other.name,
         isSelf: false,
         isFollowing: false,
-        avatarUpdatedAt: null,
+        avatarUpdatedAt:
+          stamps.get(
+            row.requesterId === userId ? row.companionId : row.requesterId,
+          ) ?? null,
       });
 
       map.set(key, current);

@@ -12,6 +12,7 @@ import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
+import { UserAvatar } from '../users/entities/user-avatar.entity';
 
 describe('WatchTogetherService', () => {
   let service: WatchTogetherService;
@@ -31,6 +32,7 @@ describe('WatchTogetherService', () => {
   let watchedSeasonRepository: { findOne: jest.Mock; insert: jest.Mock };
   let movieRepository: { find: jest.Mock };
   let serieRepository: { find: jest.Mock };
+  let avatarRepository: { find: jest.Mock };
 
   const ana = { id: 9, username: 'ana', name: 'Ana' };
 
@@ -54,6 +56,7 @@ describe('WatchTogetherService', () => {
     };
     movieRepository = { find: jest.fn().mockResolvedValue([]) };
     serieRepository = { find: jest.fn().mockResolvedValue([]) };
+    avatarRepository = { find: jest.fn().mockResolvedValue([]) };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -73,6 +76,7 @@ describe('WatchTogetherService', () => {
         },
         { provide: getRepositoryToken(Movies), useValue: movieRepository },
         { provide: getRepositoryToken(Series), useValue: serieRepository },
+        { provide: getRepositoryToken(UserAvatar), useValue: avatarRepository },
       ],
     }).compile();
 

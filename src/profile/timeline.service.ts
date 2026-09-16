@@ -6,6 +6,7 @@ import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
 import { TimelineDto, TimelineEventDto } from './dto/profile.dto';
 import { decodeCursor, encodeCursor } from './cursor';
+import { WatchTogetherService, titleKey } from './watch-together.service';
 
 const SOURCE_LIMIT = 500;
 const DEFAULT_PAGE_SIZE = 20;
@@ -38,6 +39,7 @@ export class TimelineService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(WatchedMovie)
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
+    private readonly watchTogetherService: WatchTogetherService,
     @InjectRepository(WatchedSeason)
     private readonly watchedSeasonRepository: Repository<WatchedSeason>,
   ) {}
@@ -98,6 +100,8 @@ export class TimelineService {
 
     const ranked: RankedEvent[] = [];
 
+    const companions = await this.watchTogetherService.companionsFor(owner.id);
+
     movies.forEach(row => {
       if (!row.idMovie) return;
       const occurredAt = toDateOnly(row.watchedAt) ?? toDateOnly(row.createdAt);
@@ -113,6 +117,7 @@ export class TimelineService {
           posterPath: row.idMovie.posterPath ?? null,
           rating: row.rating ?? null,
           occurredAt,
+          companions: companions.get(titleKey('movie', row.idTmdb, null)) ?? [],
         },
       });
     });
@@ -133,6 +138,9 @@ export class TimelineService {
           seasonNumber: row.seasonNumber,
           episodeCount: row.episodeCount,
           occurredAt,
+          companions:
+            companions.get(titleKey('serie', row.idTmdb, row.seasonNumber)) ??
+            [],
         },
       });
     });
