@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ProfileModule } from '../profile/profile.module';
+import { resolveSessionTtlSeconds } from './session';
 
 @Module({
   imports: [
@@ -20,10 +21,10 @@ import { ProfileModule } from '../profile/profile.module';
           throw new Error('JWT_SECRET nao esta definida');
         }
 
-        const expiresIn =
-          Number(configService.get<string>('JWT_EXPIRATION_TIME')) || 7200;
-
-        return { secret, signOptions: { expiresIn } };
+        return {
+          secret,
+          signOptions: { expiresIn: resolveSessionTtlSeconds(configService) },
+        };
       },
       inject: [ConfigService],
     }),

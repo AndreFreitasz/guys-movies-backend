@@ -6,6 +6,8 @@ import { CookieOptions, Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { Throttle } from '@nestjs/throttler';
+import { ConfigService } from '@nestjs/config';
+import { resolveSessionTtlSeconds } from './session';
 import type { AuthenticatedUser } from './jwt-auth.guard';
 
 const isProduction = () => process.env.NODE_ENV === 'production';
@@ -22,6 +24,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly avatarService: AvatarService,
+    private readonly configService: ConfigService,
   ) {}
 
   @Post('login')
@@ -32,12 +35,14 @@ export class AuthController {
       loginDto.password,
     );
 
+    const expiresIn = resolveSessionTtlSeconds(this.configService);
+
     res.cookie('jwt', accessToken, {
       ...buildCookieOptions(),
-      maxAge: 7200000,
+      maxAge: expiresIn * 1000,
     });
 
-    return res.json({ message: 'Login bem-sucedido', accessToken });
+    return res.json({ message: 'Login bem-sucedido', accessToken, expiresIn });
   }
 
   @Get('profile')
@@ -51,9 +56,7 @@ export class AuthController {
       username: user.username,
       email: user.email,
       name: user.name,
-      avatarUpdatedAt: avatar
-        ? new Date(avatar.updatedAt).toISOString()
-        : null,
+      avatarUpdatedAt: avatar ? new Date(avatar.updatedAt).toISOString() : null,
     };
   }
 
