@@ -23,6 +23,8 @@ import { UserLibraryModule } from 'src/user-library/user-library.module';
 import { ProfileModule } from 'src/profile/profile.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { HealthModule } from 'src/health/health.module';
 
 dotenv.config();
 
@@ -33,6 +35,7 @@ dotenv.config();
       envFilePath: '.env',
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
@@ -95,6 +98,7 @@ dotenv.config();
     SearchModule,
     UserLibraryModule,
     ProfileModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
