@@ -197,7 +197,7 @@ describe('ProfileService', () => {
       });
       expect(watchedSeasonRepository.find).toHaveBeenCalledWith({
         where: { user: { id: 7 } },
-        select: { idTmdb: true, episodeCount: true },
+        select: { idTmdb: true, episodeCount: true, runtimeMinutes: true },
       });
     });
   });

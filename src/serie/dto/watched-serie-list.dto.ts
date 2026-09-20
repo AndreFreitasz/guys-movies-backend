@@ -14,6 +14,7 @@ export class WatchedSerieListItemDto {
   completedAt: string | null;
   watchedSeasons: number;
   watchedEpisodes: number;
+  runtimeMinutes: number;
   episodeRunTime: number | null;
   providerId: number | null;
   watchSource: string | null;

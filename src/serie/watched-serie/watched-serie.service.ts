@@ -32,6 +32,18 @@ import {
 import { runWithConcurrency } from '../../common/run-with-concurrency';
 
 const AVAILABILITY_CONCURRENCY = 6;
+const RUNTIME_BACKFILL_CONCURRENCY = 4;
+const RUNTIME_BACKFILL_LIMIT = 40;
+
+const seasonRuntime = (
+  season: WatchedSeason,
+  episodeRunTimeByIdTmdb: Map<number, number>,
+): number => {
+  if (season.runtimeMinutes != null) return season.runtimeMinutes;
+
+  const episodeRunTime = episodeRunTimeByIdTmdb.get(season.idTmdb) ?? 0;
+  return (season.episodeCount ?? 0) * episodeRunTime;
+};
 
 @Injectable()
 export class WatchedSerieService {
@@ -235,6 +247,7 @@ export class WatchedSerieService {
         : null,
       watchedSeasons: 0,
       watchedEpisodes: 0,
+      runtimeMinutes: 0,
       episodeRunTime: watched.serie?.episodeRunTime ?? null,
       providerId: watched.providerId ?? null,
       watchSource: watched.watchSource ?? null,
@@ -291,6 +304,11 @@ export class WatchedSerieService {
     companions: Map<string, UserSummaryDto[]> = new Map(),
   ): WatchedSerieListItemDto {
     const own = seasons.filter(season => season.idTmdb === watched.idTmdb);
+    const episodeRunTimeByIdTmdb = new Map(
+      watched.serie?.episodeRunTime
+        ? [[watched.idTmdb, watched.serie.episodeRunTime]]
+        : [],
+    );
 
     return {
       ...this.toListItem(watched),
@@ -300,7 +318,64 @@ export class WatchedSerieService {
         (total, season) => total + (season.episodeCount ?? 0),
         0,
       ),
+      runtimeMinutes: own.reduce(
+        (total, season) =>
+          total + seasonRuntime(season, episodeRunTimeByIdTmdb),
+        0,
+      ),
     };
+  }
+
+  private async backfillSeasonRuntimes(
+    seasons: WatchedSeason[],
+  ): Promise<WatchedSeason[]> {
+    const pending = new Map<number, WatchedSeason[]>();
+
+    seasons
+      .filter(season => season.runtimeMinutes == null)
+      .forEach(season => {
+        const current = pending.get(season.idTmdb) ?? [];
+        current.push(season);
+        pending.set(season.idTmdb, current);
+      });
+
+    if (pending.size === 0) return seasons;
+
+    const targets = Array.from(pending.entries()).slice(
+      0,
+      RUNTIME_BACKFILL_LIMIT,
+    );
+
+    await runWithConcurrency(
+      targets,
+      RUNTIME_BACKFILL_CONCURRENCY,
+      async ([idTmdb, rows]) => {
+        const runtimes = await this.serieService.getSeasonRuntimes(
+          idTmdb,
+          rows.map(row => row.seasonNumber),
+        );
+
+        const resolved = rows
+          .map(row => {
+            const minutes = runtimes.get(row.seasonNumber)?.runtimeMinutes ?? 0;
+            if (minutes <= 0) return null;
+            row.runtimeMinutes = minutes;
+            return row;
+          })
+          .filter((row): row is WatchedSeason => row !== null);
+
+        if (resolved.length === 0) return;
+
+        await this.watchedSeasonRepository.save(
+          resolved.map(row => ({
+            id: row.id,
+            runtimeMinutes: row.runtimeMinutes,
+          })),
+        );
+      },
+    );
+
+    return seasons;
   }
 
   async listWatchedSeries(
@@ -354,6 +429,11 @@ export class WatchedSerieService {
 
     const companions = await this.watchTogetherService.companionsFor(userId);
 
+    const listedIds = new Set(watchedSeries.map(watched => watched.idTmdb));
+    await this.backfillSeasonRuntimes(
+      currentSeasons.filter(season => listedIds.has(season.idTmdb)),
+    );
+
     const items = watchedSeries.map(watched =>
       this.buildListItem(watched, currentSeasons, companions),
     );
@@ -374,8 +454,7 @@ export class WatchedSerieService {
           0,
         ),
         runtimeMinutes: items.reduce(
-          (total, item) =>
-            total + item.watchedEpisodes * (item.episodeRunTime ?? 0),
+          (total, item) => total + item.runtimeMinutes,
           0,
         ),
         averageRating: rated.length

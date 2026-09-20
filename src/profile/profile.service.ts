@@ -66,7 +66,7 @@ export class ProfileService {
       this.watchedSerieRepository.count({ where: { user: { id: userId } } }),
       this.watchedSeasonRepository.find({
         where: { user: { id: userId } },
-        select: { idTmdb: true, episodeCount: true },
+        select: { idTmdb: true, episodeCount: true, runtimeMinutes: true },
       }),
     ]);
 
@@ -90,7 +90,8 @@ export class ProfileService {
     const serieRuntimeMinutes = seasons.reduce(
       (total, season) =>
         total +
-        (season.episodeCount ?? 0) * (runtimeById.get(season.idTmdb) ?? 0),
+        (season.runtimeMinutes ??
+          (season.episodeCount ?? 0) * (runtimeById.get(season.idTmdb) ?? 0)),
       0,
     );
 
@@ -263,7 +264,7 @@ export class ProfileService {
       this.watchedMovieRepository.count({ where: { idUser: { id: userId } } }),
       this.watchedSeasonRepository.find({
         where: { user: { id: userId } },
-        select: { idTmdb: true, episodeCount: true },
+        select: { idTmdb: true, episodeCount: true, runtimeMinutes: true },
       }),
     ]);
 

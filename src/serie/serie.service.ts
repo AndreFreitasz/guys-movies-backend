@@ -1,18 +1,25 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { CastDto, ProvidersDto, SerieDto } from './dto/serie.dto';
 import { SeasonDto } from './dto/season.dto';
+import { SeasonRuntimeDto } from './dto/season-runtime.dto';
 import { TtlCache } from '../common/ttl-cache';
 
 const PROVIDER_TYPES = ['flatrate', 'buy', 'rent'] as const;
+const SEASON_APPEND_LIMIT = 20;
 
 @Injectable()
 export class SerieService {
+  private readonly logger = new Logger(SerieService.name);
   private readonly sizeImageProvider = 'https://image.tmdb.org/t/p/w92';
   private readonly sizeImagePoster = 'https://image.tmdb.org/t/p/w500';
   private readonly sizeImageBackdrop = 'https://image.tmdb.org/t/p/w1280';
   private readonly sizeImageCast = 'https://image.tmdb.org/t/p/w185';
   private readonly cache = new TtlCache<SerieDto>(60 * 60 * 1000, 500);
+  private readonly seasonRuntimeCache = new TtlCache<SeasonRuntimeDto[]>(
+    24 * 60 * 60 * 1000,
+    500,
+  );
 
   private buildImageUrl(baseUrl: string, path?: string | null): string | null {
     return path ? `${baseUrl}${path}` : null;
@@ -129,5 +136,66 @@ export class SerieService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  private async fetchSeasonRuntimes(
+    idSerie: number,
+    seasonNumbers: number[],
+  ): Promise<SeasonRuntimeDto[]> {
+    const append = seasonNumbers.map(number => `season/${number}`).join(',');
+    const url =
+      `https://api.themoviedb.org/3/tv/${idSerie}` +
+      `?api_key=${process.env.TMDB_API_KEY}&language=pt-BR` +
+      `&append_to_response=${append}`;
+
+    const response = await axios.get(url, { timeout: 12000 });
+
+    return seasonNumbers.map(seasonNumber => {
+      const season = response.data?.[`season/${seasonNumber}`];
+      const episodes = Array.isArray(season?.episodes) ? season.episodes : [];
+
+      return {
+        seasonNumber,
+        episodeCount: episodes.length,
+        runtimeMinutes: episodes.reduce(
+          (total: number, episode: { runtime?: number }) =>
+            total + (Number(episode?.runtime) || 0),
+          0,
+        ),
+      };
+    });
+  }
+
+  async getSeasonRuntimes(
+    idSerie: number,
+    seasonNumbers: number[],
+  ): Promise<Map<number, SeasonRuntimeDto>> {
+    const id = Math.trunc(Number(idSerie));
+    const wanted = Array.from(
+      new Set(
+        seasonNumbers.filter(number => Number.isInteger(number) && number > 0),
+      ),
+    ).sort((first, second) => first - second);
+
+    const runtimes = new Map<number, SeasonRuntimeDto>();
+    if (!Number.isFinite(id) || id <= 0 || wanted.length === 0) return runtimes;
+
+    for (let start = 0; start < wanted.length; start += SEASON_APPEND_LIMIT) {
+      const chunk = wanted.slice(start, start + SEASON_APPEND_LIMIT);
+
+      try {
+        const rows = await this.seasonRuntimeCache.resolve(
+          `${id}:${chunk.join('-')}`,
+          () => this.fetchSeasonRuntimes(id, chunk),
+        );
+        rows.forEach(row => runtimes.set(row.seasonNumber, row));
+      } catch (error) {
+        this.logger.warn(
+          `Falha ao consultar a duracao das temporadas da serie ${id}: ${error?.message ?? error}`,
+        );
+      }
+    }
+
+    return runtimes;
   }
 }

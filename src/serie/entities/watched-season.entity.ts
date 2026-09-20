@@ -36,6 +36,9 @@ export class WatchedSeason {
   @Column({ type: 'int' })
   episodeCount: number;
 
+  @Column({ type: 'int', nullable: true })
+  runtimeMinutes: number | null;
+
   @Column({ type: 'date', nullable: true })
   watchedAt: Date;
 

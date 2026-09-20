@@ -43,7 +43,10 @@ describe('WatchedSeasonService', () => {
     seriesCatalogRepository = {
       save: jest.fn(entity => Promise.resolve(entity)),
     };
-    serieService = { getSerieData: jest.fn().mockResolvedValue(serieData) };
+    serieService = {
+      getSerieData: jest.fn().mockResolvedValue(serieData),
+      getSeasonRuntimes: jest.fn().mockResolvedValue(new Map()),
+    };
     createdSerieService = {
       findSerieByIdTmdb: jest.fn().mockResolvedValue({ id: 9 }),
       createSerie: jest.fn(),
@@ -77,6 +80,44 @@ describe('WatchedSeasonService', () => {
 
     expect(seasonRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({ seasonNumber: 1, episodeCount: 10 }),
+    );
+  });
+
+  it('grava os minutos reais da temporada devolvidos pela TMDB', async () => {
+    serieService.getSeasonRuntimes.mockResolvedValue(
+      new Map([
+        [1, { seasonNumber: 1, episodeCount: 10, runtimeMinutes: 452 }],
+      ]),
+    );
+
+    await service.markSeason(1, 70523, 1, null);
+
+    expect(seasonRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonNumber: 1, runtimeMinutes: 452 }),
+    );
+  });
+
+  it('cai para a duracao media quando a TMDB nao tem os minutos da temporada', async () => {
+    serieService.getSeasonRuntimes.mockResolvedValue(new Map());
+
+    await service.markSeason(1, 70523, 1, null);
+
+    expect(seasonRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonNumber: 1, runtimeMinutes: 600 }),
+    );
+  });
+
+  it('deixa os minutos nulos quando nao ha nenhuma duracao conhecida', async () => {
+    serieService.getSeasonRuntimes.mockResolvedValue(new Map());
+    serieService.getSerieData.mockResolvedValue({
+      ...serieData,
+      episodeRunTime: null,
+    });
+
+    await service.markSeason(1, 70523, 1, null);
+
+    expect(seasonRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonNumber: 1, runtimeMinutes: null }),
     );
   });
 
