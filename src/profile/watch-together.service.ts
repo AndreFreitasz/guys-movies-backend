@@ -106,10 +106,66 @@ export class WatchTogetherService {
     });
   }
 
+  private async findOwnSeasons(
+    userId: number,
+    idTmdb: number,
+  ): Promise<WatchedSeason[]> {
+    return this.watchedSeasonRepository.find({
+      where: { user: { id: userId }, idTmdb },
+      order: { seasonNumber: 'ASC' },
+    });
+  }
+
   private async findLink(id: number): Promise<WatchTogether> {
     const link = await this.linkRepository.findOne({ where: { id } });
     if (!link) throw new NotFoundException('Marcacao nao encontrada');
     return link;
+  }
+
+  private async link(
+    userId: number,
+    companionId: number,
+    type: WatchTogetherType,
+    idTmdb: number,
+    seasonNumber: number | null,
+    watchedAt: Date | string | null,
+    episodeCount: number | null,
+  ): Promise<void> {
+    const existing = await this.linkRepository.findOne({
+      where: [
+        {
+          type,
+          idTmdb,
+          seasonNumber,
+          requesterId: userId,
+          companionId,
+        },
+        {
+          type,
+          idTmdb,
+          seasonNumber,
+          requesterId: companionId,
+          companionId: userId,
+        },
+      ],
+    });
+
+    if (existing) return;
+
+    try {
+      await this.linkRepository.insert({
+        type,
+        idTmdb,
+        seasonNumber,
+        requesterId: userId,
+        companionId,
+        status: 'pending',
+        watchedAt: watchedAt ? String(watchedAt) : null,
+        episodeCount,
+      });
+    } catch (caught) {
+      if ((caught as { code?: string }).code !== UNIQUE_VIOLATION) throw caught;
+    }
   }
 
   async tag(userId: number, input: TagInput): Promise<void> {
@@ -122,6 +178,30 @@ export class WatchTogetherService {
 
     if (companion.id === userId) {
       throw new BadRequestException('Nao e possivel marcar a si mesmo');
+    }
+
+    if (input.type === 'serie' && input.seasonNumber == null) {
+      const seasons = await this.findOwnSeasons(userId, input.idTmdb);
+
+      if (seasons.length === 0) {
+        throw new BadRequestException(
+          'Marque o titulo como assistido antes de dizer com quem assistiu',
+        );
+      }
+
+      for (const season of seasons) {
+        await this.link(
+          userId,
+          companion.id,
+          input.type,
+          input.idTmdb,
+          season.seasonNumber,
+          season.watchedAt ?? null,
+          season.episodeCount ?? null,
+        );
+      }
+
+      return;
     }
 
     const own = await this.findOwnWatch(
@@ -137,45 +217,17 @@ export class WatchTogetherService {
       );
     }
 
-    const existing = await this.linkRepository.findOne({
-      where: [
-        {
-          type: input.type,
-          idTmdb: input.idTmdb,
-          seasonNumber: input.seasonNumber ?? null,
-          requesterId: userId,
-          companionId: companion.id,
-        },
-        {
-          type: input.type,
-          idTmdb: input.idTmdb,
-          seasonNumber: input.seasonNumber ?? null,
-          requesterId: companion.id,
-          companionId: userId,
-        },
-      ],
-    });
-
-    if (existing) return;
-
-    const watchedAt = own.watchedAt ?? null;
-    const episodeCount =
-      input.type === 'serie' ? ((own as WatchedSeason).episodeCount ?? null) : null;
-
-    try {
-      await this.linkRepository.insert({
-        type: input.type,
-        idTmdb: input.idTmdb,
-        seasonNumber: input.seasonNumber ?? null,
-        requesterId: userId,
-        companionId: companion.id,
-        status: 'pending',
-        watchedAt: watchedAt ? String(watchedAt) : null,
-        episodeCount,
-      });
-    } catch (caught) {
-      if ((caught as { code?: string }).code !== UNIQUE_VIOLATION) throw caught;
-    }
+    await this.link(
+      userId,
+      companion.id,
+      input.type,
+      input.idTmdb,
+      input.seasonNumber ?? null,
+      own.watchedAt ?? null,
+      input.type === 'serie'
+        ? ((own as WatchedSeason).episodeCount ?? null)
+        : null,
+    );
   }
 
   async countPending(userId: number): Promise<number> {

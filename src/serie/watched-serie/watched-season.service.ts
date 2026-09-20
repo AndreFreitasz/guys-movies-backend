@@ -12,6 +12,18 @@ import { SeasonProgressDto } from '../dto/watched-serie-list.dto';
 
 const UNIQUE_VIOLATION = '23505';
 
+const estimateSeasonRuntime = (
+  reported: number | null,
+  episodeCount: number,
+  episodeRunTime: number | null,
+): number | null => {
+  if (reported != null && reported > 0) return reported;
+  if (episodeRunTime != null && episodeRunTime > 0) {
+    return episodeCount * episodeRunTime;
+  }
+  return null;
+};
+
 @Injectable()
 export class WatchedSeasonService {
   constructor(
@@ -24,6 +36,23 @@ export class WatchedSeasonService {
     private readonly serieService: SerieService,
     private readonly createdSerieService: CreatedSerieService,
   ) {}
+
+  private async resolveRuntime(
+    idTmdb: number,
+    seasonNumber: number,
+    episodeCount: number,
+    episodeRunTime: number | null,
+  ): Promise<number | null> {
+    const runtimes = await this.serieService.getSeasonRuntimes(idTmdb, [
+      seasonNumber,
+    ]);
+
+    return estimateSeasonRuntime(
+      runtimes.get(seasonNumber)?.runtimeMinutes ?? null,
+      episodeCount,
+      episodeRunTime,
+    );
+  }
 
   private async resolveSeason(idTmdb: number, seasonNumber: number) {
     if (seasonNumber < 1) {
@@ -113,8 +142,16 @@ export class WatchedSeasonService {
         where: { user: { id: userId }, idTmdb, seasonNumber },
       });
 
+      const runtimeMinutes = await this.resolveRuntime(
+        idTmdb,
+        seasonNumber,
+        season.episode_count,
+        serieData.episodeRunTime,
+      );
+
       if (existing) {
         existing.episodeCount = season.episode_count;
+        existing.runtimeMinutes = runtimeMinutes;
         if (watchedAt) existing.watchedAt = new Date(watchedAt);
         await this.watchedSeasonRepository.save(existing);
       } else {
@@ -124,6 +161,7 @@ export class WatchedSeasonService {
           idTmdb,
           seasonNumber,
           episodeCount: season.episode_count,
+          runtimeMinutes,
           watchedAt: watchedAt ? new Date(watchedAt) : null,
         });
         await this.watchedSeasonRepository.save(created);
@@ -240,15 +278,27 @@ export class WatchedSeasonService {
       existingSeasons.map(season => season.seasonNumber),
     );
 
-    for (const season of serieData.seasons ?? []) {
-      if (watchedSeasonNumbers.has(season.season_number)) continue;
+    const missing = (serieData.seasons ?? []).filter(
+      season => !watchedSeasonNumbers.has(season.season_number),
+    );
 
+    const runtimes = await this.serieService.getSeasonRuntimes(
+      idTmdb,
+      missing.map(season => season.season_number),
+    );
+
+    for (const season of missing) {
       const created = this.watchedSeasonRepository.create({
         user: { id: userId } as any,
         serie,
         idTmdb,
         seasonNumber: season.season_number,
         episodeCount: season.episode_count,
+        runtimeMinutes: estimateSeasonRuntime(
+          runtimes.get(season.season_number)?.runtimeMinutes ?? null,
+          season.episode_count,
+          serieData.episodeRunTime,
+        ),
         watchedAt: null,
       });
       await this.watchedSeasonRepository.save(created);

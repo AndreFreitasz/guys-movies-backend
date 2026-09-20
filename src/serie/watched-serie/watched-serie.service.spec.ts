@@ -117,14 +117,22 @@ describe('WatchedSerieService.rateSerie', () => {
 describe('WatchedSerieService.updateWatchedAt', () => {
   let service: WatchedSerieService;
   let repository: { findOne: jest.Mock; save: jest.Mock };
-  let watchedSeasonRepository: { find: jest.Mock };
+  let watchedSeasonRepository: {
+    find: jest.Mock;
+    delete: jest.Mock;
+    save: jest.Mock;
+  };
 
   beforeEach(async () => {
     repository = {
       findOne: jest.fn(),
       save: jest.fn(value => Promise.resolve(value)),
     };
-    watchedSeasonRepository = { find: jest.fn().mockResolvedValue([]) };
+    watchedSeasonRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn().mockResolvedValue({ affected: 0 }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -263,16 +271,27 @@ describe('WatchedSerieService.updateWatchedAt', () => {
 describe('WatchedSerieService.listWatchedSeries', () => {
   let service: WatchedSerieService;
   let watchedSerieRepository: { find: jest.Mock };
-  let watchedSeasonRepository: { find: jest.Mock };
+  let watchedSeasonRepository: {
+    find: jest.Mock;
+    delete: jest.Mock;
+    save: jest.Mock;
+  };
   let serieRepository: { save: jest.Mock };
-  let serieService: { getSerieData: jest.Mock };
+  let serieService: { getSerieData: jest.Mock; getSeasonRuntimes: jest.Mock };
   let watchedSeasonService: { completeSerie: jest.Mock };
 
   beforeEach(async () => {
     watchedSerieRepository = { find: jest.fn() };
-    watchedSeasonRepository = { find: jest.fn() };
+    watchedSeasonRepository = {
+      find: jest.fn(),
+      delete: jest.fn().mockResolvedValue({ affected: 0 }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
     serieRepository = { save: jest.fn().mockResolvedValue(undefined) };
-    serieService = { getSerieData: jest.fn() };
+    serieService = {
+      getSerieData: jest.fn(),
+      getSeasonRuntimes: jest.fn().mockResolvedValue(new Map()),
+    };
     watchedSeasonService = {
       completeSerie: jest.fn().mockResolvedValue({
         watchedSeasons: 0,
@@ -307,6 +326,117 @@ describe('WatchedSerieService.listWatchedSeries', () => {
     }).compile();
 
     service = moduleRef.get(WatchedSerieService);
+  });
+
+  it('soma o tempo assistido pelos minutos gravados em cada temporada', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        rating: null,
+        watchedAt: null,
+        completedAt: new Date('2025-01-05'),
+        createdAt: new Date('2025-01-05'),
+        serie: { name: 'Dark', numberOfSeasons: 2, episodeRunTime: null },
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([
+      { idTmdb: 70523, seasonNumber: 1, episodeCount: 10, runtimeMinutes: 480 },
+      { idTmdb: 70523, seasonNumber: 2, episodeCount: 8, runtimeMinutes: 390 },
+    ]);
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(result.stats.runtimeMinutes).toBe(870);
+    expect(result.items[0].runtimeMinutes).toBe(870);
+    expect(serieService.getSeasonRuntimes).not.toHaveBeenCalled();
+  });
+
+  it('cai para a duracao media quando a temporada ainda nao tem minutos', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2025-01-05'),
+        serie: { name: 'Dark', numberOfSeasons: 2, episodeRunTime: 60 },
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        seasonNumber: 1,
+        episodeCount: 10,
+        runtimeMinutes: null,
+      },
+    ]);
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(result.stats.runtimeMinutes).toBe(600);
+  });
+
+  it('preenche os minutos que faltam consultando a TMDB uma vez', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2025-01-05'),
+        serie: { name: 'Dark', numberOfSeasons: 2, episodeRunTime: null },
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([
+      {
+        id: 11,
+        idTmdb: 70523,
+        seasonNumber: 1,
+        episodeCount: 10,
+        runtimeMinutes: null,
+      },
+    ]);
+    serieService.getSeasonRuntimes.mockResolvedValue(
+      new Map([
+        [1, { seasonNumber: 1, episodeCount: 10, runtimeMinutes: 452 }],
+      ]),
+    );
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(serieService.getSeasonRuntimes).toHaveBeenCalledWith(70523, [1]);
+    expect(watchedSeasonRepository.save).toHaveBeenCalledWith([
+      { id: 11, runtimeMinutes: 452 },
+    ]);
+    expect(result.stats.runtimeMinutes).toBe(452);
+  });
+
+  it('nao grava minutos quando a TMDB nao devolve a duracao', async () => {
+    watchedSerieRepository.find.mockResolvedValue([
+      {
+        idTmdb: 70523,
+        rating: null,
+        watchedAt: null,
+        completedAt: null,
+        createdAt: new Date('2025-01-05'),
+        serie: { name: 'Dark', numberOfSeasons: 2, episodeRunTime: null },
+      },
+    ]);
+    watchedSeasonRepository.find.mockResolvedValue([
+      {
+        id: 11,
+        idTmdb: 70523,
+        seasonNumber: 1,
+        episodeCount: 10,
+        runtimeMinutes: null,
+      },
+    ]);
+    serieService.getSeasonRuntimes.mockResolvedValue(new Map());
+
+    const result = await service.listWatchedSeries(1);
+
+    expect(watchedSeasonRepository.save).not.toHaveBeenCalled();
+    expect(result.stats.runtimeMinutes).toBe(0);
   });
 
   it('responde a lista mesmo com a TMDB fora do ar', async () => {
@@ -475,14 +605,17 @@ describe('WatchedSerieService.listWatchedSeries', () => {
 describe('WatchedSerieService.setWatchSource', () => {
   let service: WatchedSerieService;
   let watchedSerieRepository: { findOne: jest.Mock; save: jest.Mock };
-  let serieService: { getSerieData: jest.Mock };
+  let serieService: { getSerieData: jest.Mock; getSeasonRuntimes: jest.Mock };
 
   beforeEach(async () => {
     watchedSerieRepository = {
       findOne: jest.fn().mockResolvedValue({ id: 3, idTmdb: 70523 }),
       save: jest.fn(value => Promise.resolve(value)),
     };
-    serieService = { getSerieData: jest.fn() };
+    serieService = {
+      getSerieData: jest.fn(),
+      getSeasonRuntimes: jest.fn().mockResolvedValue(new Map()),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -603,7 +736,8 @@ describe('WatchedSerieService.markAsWatched', () => {
     createSerie: jest.Mock;
     findSerieByIdTmdb: jest.Mock;
   };
-  let serieService: { getSerieData: jest.Mock };
+  let serieService: { getSerieData: jest.Mock; getSeasonRuntimes: jest.Mock };
+  let seasonRepository: { find: jest.Mock; delete: jest.Mock; save: jest.Mock };
 
   beforeEach(async () => {
     repository = {
@@ -612,11 +746,19 @@ describe('WatchedSerieService.markAsWatched', () => {
       insert: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
+    seasonRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn().mockResolvedValue({ affected: 2 }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
     createdSerieService = {
       createSerie: jest.fn().mockResolvedValue({ message: 'ok' }),
       findSerieByIdTmdb: jest.fn().mockResolvedValue({ id: 7 }),
     };
-    serieService = { getSerieData: jest.fn() };
+    serieService = {
+      getSerieData: jest.fn(),
+      getSeasonRuntimes: jest.fn().mockResolvedValue(new Map()),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -628,7 +770,7 @@ describe('WatchedSerieService.markAsWatched', () => {
         { provide: getRepositoryToken(WatchedSerie), useValue: repository },
         {
           provide: getRepositoryToken(WatchedSeason),
-          useValue: { find: jest.fn().mockResolvedValue([]) },
+          useValue: seasonRepository,
         },
         {
           provide: getRepositoryToken(Series),
@@ -661,6 +803,17 @@ describe('WatchedSerieService.markAsWatched', () => {
     ).rejects.toThrow(BadRequestException);
 
     expect(repository.insert).not.toHaveBeenCalled();
+  });
+
+  it('desmarcar a serie apaga tambem as temporadas assistidas', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, idTmdb: 70523 });
+
+    await service.markAsWatched(new Date(), 1, seriePayload);
+
+    expect(seasonRepository.delete).toHaveBeenCalledWith({
+      user: { id: 1 },
+      idTmdb: 70523,
+    });
   });
 
   it('desmarca mesmo com combinacao invalida de watchSource e providerId no corpo', async () => {
