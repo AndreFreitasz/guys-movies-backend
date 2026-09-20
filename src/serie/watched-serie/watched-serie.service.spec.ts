@@ -603,7 +603,8 @@ describe('WatchedSerieService.markAsWatched', () => {
     createSerie: jest.Mock;
     findSerieByIdTmdb: jest.Mock;
   };
-  let serieService: { getSerieData: jest.Mock };
+  let serieService: { getSerieData: jest.Mock; getSeasonRuntimes: jest.Mock };
+  let seasonRepository: { find: jest.Mock; delete: jest.Mock; save: jest.Mock };
 
   beforeEach(async () => {
     repository = {
@@ -612,11 +613,19 @@ describe('WatchedSerieService.markAsWatched', () => {
       insert: jest.fn().mockResolvedValue(undefined),
       delete: jest.fn().mockResolvedValue({ affected: 1 }),
     };
+    seasonRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn().mockResolvedValue({ affected: 2 }),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
     createdSerieService = {
       createSerie: jest.fn().mockResolvedValue({ message: 'ok' }),
       findSerieByIdTmdb: jest.fn().mockResolvedValue({ id: 7 }),
     };
-    serieService = { getSerieData: jest.fn() };
+    serieService = {
+      getSerieData: jest.fn(),
+      getSeasonRuntimes: jest.fn().mockResolvedValue(new Map()),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       providers: [
@@ -628,7 +637,7 @@ describe('WatchedSerieService.markAsWatched', () => {
         { provide: getRepositoryToken(WatchedSerie), useValue: repository },
         {
           provide: getRepositoryToken(WatchedSeason),
-          useValue: { find: jest.fn().mockResolvedValue([]) },
+          useValue: seasonRepository,
         },
         {
           provide: getRepositoryToken(Series),
@@ -661,6 +670,17 @@ describe('WatchedSerieService.markAsWatched', () => {
     ).rejects.toThrow(BadRequestException);
 
     expect(repository.insert).not.toHaveBeenCalled();
+  });
+
+  it('desmarcar a serie apaga tambem as temporadas assistidas', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, idTmdb: 70523 });
+
+    await service.markAsWatched(new Date(), 1, seriePayload);
+
+    expect(seasonRepository.delete).toHaveBeenCalledWith({
+      user: { id: 1 },
+      idTmdb: 70523,
+    });
   });
 
   it('desmarca mesmo com combinacao invalida de watchSource e providerId no corpo', async () => {

@@ -155,6 +155,10 @@ export class WatchedSerieService {
 
   async destroyWatchedSerie(userId: number, serieId: number): Promise<string> {
     try {
+      const watched = await this.watchedSerieRepository.findOne({
+        where: { user: { id: userId }, serie: { id: serieId } },
+      });
+
       const result = await this.watchedSerieRepository.delete({
         user: { id: userId },
         serie: { id: serieId },
@@ -165,6 +169,14 @@ export class WatchedSerieService {
           HttpStatus.NOT_FOUND,
         );
       }
+
+      if (watched) {
+        await this.watchedSeasonRepository.delete({
+          user: { id: userId },
+          idTmdb: watched.idTmdb,
+        });
+      }
+
       return 'Série desmarcada com sucesso';
     } catch (error) {
       throw new HttpException(

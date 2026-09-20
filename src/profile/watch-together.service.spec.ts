@@ -30,7 +30,11 @@ describe('WatchTogetherService', () => {
     insert: jest.Mock;
     update: jest.Mock;
   };
-  let watchedSeasonRepository: { findOne: jest.Mock; insert: jest.Mock };
+  let watchedSeasonRepository: {
+    findOne: jest.Mock;
+    find: jest.Mock;
+    insert: jest.Mock;
+  };
   let movieRepository: { find: jest.Mock; findOne: jest.Mock };
   let serieRepository: { find: jest.Mock; findOne: jest.Mock };
   let avatarRepository: { find: jest.Mock };
@@ -54,6 +58,7 @@ describe('WatchTogetherService', () => {
     };
     watchedSeasonRepository = {
       findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
       insert: jest.fn().mockResolvedValue({}),
     };
     movieRepository = {
@@ -350,5 +355,132 @@ it('grava o vinculo com o filme, senao a listagem perde titulo e poster', async 
         }),
       );
     });
+  });
+});
+
+describe('WatchTogetherService.tag em serie sem temporada', () => {
+  let service: WatchTogetherService;
+  let linkRepository: {
+    findOne: jest.Mock;
+    find: jest.Mock;
+    count: jest.Mock;
+    insert: jest.Mock;
+    update: jest.Mock;
+    delete: jest.Mock;
+  };
+  let watchedSeasonRepository: {
+    findOne: jest.Mock;
+    find: jest.Mock;
+    insert: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    linkRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      insert: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    watchedSeasonRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn().mockResolvedValue([]),
+      insert: jest.fn().mockResolvedValue({}),
+    };
+
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        WatchTogetherService,
+        {
+          provide: getRepositoryToken(WatchTogether),
+          useValue: linkRepository,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: {
+            findOne: jest
+              .fn()
+              .mockResolvedValue({ id: 9, username: 'ana', name: 'Ana' }),
+          },
+        },
+        {
+          provide: getRepositoryToken(WatchedMovie),
+          useValue: {
+            findOne: jest.fn(),
+            insert: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+        {
+          provide: getRepositoryToken(WatchedSeason),
+          useValue: watchedSeasonRepository,
+        },
+        {
+          provide: getRepositoryToken(Movies),
+          useValue: { find: jest.fn(), findOne: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(Series),
+          useValue: { find: jest.fn(), findOne: jest.fn() },
+        },
+        {
+          provide: getRepositoryToken(UserAvatar),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(WatchTogetherService);
+  });
+
+  it('marca a pessoa em todas as temporadas assistidas', async () => {
+    watchedSeasonRepository.find.mockResolvedValue([
+      { seasonNumber: 1, episodeCount: 10, watchedAt: null },
+      { seasonNumber: 2, episodeCount: 8, watchedAt: null },
+    ]);
+
+    await service.tag(1, {
+      type: 'serie',
+      idTmdb: 70523,
+      companionUsername: 'ana',
+    });
+
+    expect(linkRepository.insert).toHaveBeenCalledTimes(2);
+    expect(linkRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonNumber: 1, episodeCount: 10 }),
+    );
+    expect(linkRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ seasonNumber: 2, episodeCount: 8 }),
+    );
+  });
+
+  it('recusa quando nenhuma temporada foi marcada', async () => {
+    watchedSeasonRepository.find.mockResolvedValue([]);
+
+    await expect(
+      service.tag(1, {
+        type: 'serie',
+        idTmdb: 70523,
+        companionUsername: 'ana',
+      }),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(linkRepository.insert).not.toHaveBeenCalled();
+  });
+
+  it('nao duplica um vinculo que ja existe na temporada', async () => {
+    watchedSeasonRepository.find.mockResolvedValue([
+      { seasonNumber: 1, episodeCount: 10, watchedAt: null },
+    ]);
+    linkRepository.findOne.mockResolvedValue({ id: 4 });
+
+    await service.tag(1, {
+      type: 'serie',
+      idTmdb: 70523,
+      companionUsername: 'ana',
+    });
+
+    expect(linkRepository.insert).not.toHaveBeenCalled();
   });
 });
