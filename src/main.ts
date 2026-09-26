@@ -19,6 +19,8 @@ function resolveCorsOrigins(): string[] {
   return [
     'http://localhost:3000',
     'http://localhost:3001',
+    'https://www.guysmovies.space',
+    'https://guysmovies.space',
     'https://guys-movies-frontend.vercel.app',
   ];
 }
