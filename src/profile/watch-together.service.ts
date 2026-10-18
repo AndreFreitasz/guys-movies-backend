@@ -13,6 +13,7 @@ import {
 import { User } from '../users/entities/user.entity';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
+import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
 import { UserAvatar } from '../users/entities/user-avatar.entity';
@@ -44,6 +45,8 @@ export class WatchTogetherService {
     private readonly watchedMovieRepository: Repository<WatchedMovie>,
     @InjectRepository(WatchedSeason)
     private readonly watchedSeasonRepository: Repository<WatchedSeason>,
+    @InjectRepository(WatchedSerie)
+    private readonly watchedSerieRepository: Repository<WatchedSerie>,
     @InjectRepository(Movies)
     private readonly movieRepository: Repository<Movies>,
     @InjectRepository(Series)
@@ -303,10 +306,56 @@ export class WatchTogetherService {
       await this.watchedMovieRepository.update(existing.id, { rating });
     }
 
+    if (link.type === 'serie') {
+      await this.syncWatchedSerie(userId, link);
+    }
+
     await this.linkRepository.update(id, {
       status: 'accepted',
       respondedAt: new Date(),
     });
+  }
+
+  private async syncWatchedSerie(
+    userId: number,
+    link: WatchTogether,
+  ): Promise<void> {
+    const serie = await this.serieRepository.findOne({
+      where: { idTmdb: link.idTmdb },
+      select: ['id', 'numberOfSeasons'],
+    });
+
+    let watched = await this.watchedSerieRepository.findOne({
+      where: { user: { id: userId }, idTmdb: link.idTmdb },
+    });
+
+    if (!watched) {
+      await this.watchedSerieRepository.insert({
+        user: { id: userId },
+        serie: serie ? { id: serie.id } : undefined,
+        idTmdb: link.idTmdb,
+        watchedAt: link.watchedAt as unknown as Date,
+      });
+
+      watched = await this.watchedSerieRepository.findOne({
+        where: { user: { id: userId }, idTmdb: link.idTmdb },
+      });
+    }
+
+    if (!watched || watched.completedAt) return;
+
+    const totalSeasons = serie?.numberOfSeasons ?? 0;
+    if (totalSeasons <= 0) return;
+
+    const watchedSeasons = await this.watchedSeasonRepository.count({
+      where: { user: { id: userId }, idTmdb: link.idTmdb },
+    });
+
+    if (watchedSeasons >= totalSeasons) {
+      await this.watchedSerieRepository.update(watched.id, {
+        completedAt: (link.watchedAt ?? new Date()) as unknown as Date,
+      });
+    }
   }
 
   async reject(userId: number, id: number): Promise<void> {
@@ -332,9 +381,7 @@ export class WatchTogetherService {
     await this.linkRepository.delete(id);
   }
 
-  async companionsFor(
-    userId: number,
-  ): Promise<Map<string, UserSummaryDto[]>> {
+  async companionsFor(userId: number): Promise<Map<string, UserSummaryDto[]>> {
     const rows = await this.linkRepository.find({
       where: [
         { requesterId: userId, status: 'accepted' },
@@ -366,8 +413,7 @@ export class WatchTogetherService {
     const map = new Map<string, UserSummaryDto[]>();
 
     rows.forEach(row => {
-      const other =
-        row.requesterId === userId ? row.companion : row.requester;
+      const other = row.requesterId === userId ? row.companion : row.requester;
       if (!other) return;
 
       const key = titleKey(row.type, row.idTmdb, row.seasonNumber);

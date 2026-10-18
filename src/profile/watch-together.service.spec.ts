@@ -10,6 +10,7 @@ import { WatchTogether } from '../users/entities/watch-together.entity';
 import { User } from '../users/entities/user.entity';
 import { WatchedMovie } from '../movie/entities/watched-movie.entity';
 import { WatchedSeason } from '../serie/entities/watched-season.entity';
+import { WatchedSerie } from '../serie/entities/watched-serie.entity';
 import { Movies } from '../movie/entities/movies.entity';
 import { Series } from '../serie/entities/series.entity';
 import { UserAvatar } from '../users/entities/user-avatar.entity';
@@ -34,6 +35,12 @@ describe('WatchTogetherService', () => {
     findOne: jest.Mock;
     find: jest.Mock;
     insert: jest.Mock;
+    count: jest.Mock;
+  };
+  let watchedSerieRepository: {
+    findOne: jest.Mock;
+    insert: jest.Mock;
+    update: jest.Mock;
   };
   let movieRepository: { find: jest.Mock; findOne: jest.Mock };
   let serieRepository: { find: jest.Mock; findOne: jest.Mock };
@@ -60,6 +67,12 @@ describe('WatchTogetherService', () => {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
       insert: jest.fn().mockResolvedValue({}),
+      count: jest.fn().mockResolvedValue(0),
+    };
+    watchedSerieRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      insert: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
     };
     movieRepository = {
       find: jest.fn().mockResolvedValue([]),
@@ -86,6 +99,10 @@ describe('WatchTogetherService', () => {
         {
           provide: getRepositoryToken(WatchedSeason),
           useValue: watchedSeasonRepository,
+        },
+        {
+          provide: getRepositoryToken(WatchedSerie),
+          useValue: watchedSerieRepository,
         },
         { provide: getRepositoryToken(Movies), useValue: movieRepository },
         { provide: getRepositoryToken(Series), useValue: serieRepository },
@@ -196,7 +213,7 @@ describe('WatchTogetherService', () => {
       );
     });
 
-it('grava o vinculo com o filme, senao a listagem perde titulo e poster', async () => {
+    it('grava o vinculo com o filme, senao a listagem perde titulo e poster', async () => {
       linkRepository.findOne.mockResolvedValue(pendingLink);
       watchedMovieRepository.findOne.mockResolvedValue(null);
       movieRepository.findOne = jest.fn().mockResolvedValue({ id: 77 });
@@ -223,6 +240,58 @@ it('grava o vinculo com o filme, senao a listagem perde titulo e poster', async 
       expect(watchedSeasonRepository.insert).toHaveBeenCalledWith(
         expect.objectContaining({ serie: { id: 55 } }),
       );
+    });
+
+    it('coloca a serie em assistidos ao aceitar so uma temporada', async () => {
+      linkRepository.findOne.mockResolvedValue({
+        ...pendingLink,
+        type: 'serie',
+        seasonNumber: 1,
+        episodeCount: 8,
+      });
+      serieRepository.findOne = jest
+        .fn()
+        .mockResolvedValue({ id: 55, numberOfSeasons: 3 });
+      watchedSerieRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 70, completedAt: null });
+      watchedSeasonRepository.count.mockResolvedValue(1);
+
+      await service.accept(9, 3);
+
+      expect(watchedSerieRepository.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user: { id: 9 },
+          serie: { id: 55 },
+          idTmdb: 438631,
+          watchedAt: '2026-09-10',
+        }),
+      );
+      expect(watchedSerieRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('marca a serie como completa ao aceitar a ultima temporada', async () => {
+      linkRepository.findOne.mockResolvedValue({
+        ...pendingLink,
+        type: 'serie',
+        seasonNumber: 3,
+        episodeCount: 8,
+      });
+      serieRepository.findOne = jest
+        .fn()
+        .mockResolvedValue({ id: 55, numberOfSeasons: 3 });
+      watchedSerieRepository.findOne.mockResolvedValue({
+        id: 70,
+        completedAt: null,
+      });
+      watchedSeasonRepository.count.mockResolvedValue(3);
+
+      await service.accept(9, 3);
+
+      expect(watchedSerieRepository.insert).not.toHaveBeenCalled();
+      expect(watchedSerieRepository.update).toHaveBeenCalledWith(70, {
+        completedAt: '2026-09-10',
+      });
     });
 
     it('nao duplica quando a pessoa ja tinha o registro', async () => {
@@ -415,6 +484,14 @@ describe('WatchTogetherService.tag em serie sem temporada', () => {
         {
           provide: getRepositoryToken(WatchedSeason),
           useValue: watchedSeasonRepository,
+        },
+        {
+          provide: getRepositoryToken(WatchedSerie),
+          useValue: {
+            findOne: jest.fn(),
+            insert: jest.fn(),
+            update: jest.fn(),
+          },
         },
         {
           provide: getRepositoryToken(Movies),
