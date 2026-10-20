@@ -74,7 +74,7 @@ export class TimelineService {
   ): Promise<TimelineDto> {
     const owner = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id'],
+      select: { id: true },
     });
 
     if (!owner) {

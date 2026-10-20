@@ -83,7 +83,7 @@ export class AvatarService {
   async findByUsername(username: string): Promise<StoredAvatar | null> {
     const owner = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id'],
+      select: { id: true },
     });
 
     if (!owner) {

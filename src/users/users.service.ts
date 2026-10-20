@@ -21,7 +21,7 @@ export class UsersService {
   ): Promise<void> {
     const existing = await this.usersRepository.findOne({
       where: [{ email }, { username }],
-      select: ['id'],
+      select: { id: true },
     });
 
     if (existing) {
@@ -52,14 +52,20 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | undefined> {
     return this.usersRepository.findOne({
       where: { email },
-      select: ['id', 'email', 'username', 'name', 'password'],
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        password: true,
+      },
     });
   }
 
   async findById(id: number): Promise<User | undefined> {
     return this.usersRepository.findOne({
       where: { id },
-      select: ['id', 'email', 'username', 'name'],
+      select: { id: true, email: true, username: true, name: true },
     });
   }
 }

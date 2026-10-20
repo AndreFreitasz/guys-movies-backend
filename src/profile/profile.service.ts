@@ -282,15 +282,15 @@ export class ProfileService {
   async getProfile(viewerId: number, username: string): Promise<ProfileDto> {
     const owner = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: [
-        'id',
-        'username',
-        'name',
-        'bio',
-        'createdAt',
-        'coverType',
-        'coverTmdbId',
-      ],
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        bio: true,
+        createdAt: true,
+        coverType: true,
+        coverTmdbId: true,
+      },
     });
 
     if (!owner) {
@@ -318,7 +318,7 @@ export class ProfileService {
               follower: { id: viewerId },
               following: { id: owner.id },
             },
-            select: ['id'],
+            select: { id: true },
           }),
       isSelf
         ? Promise.resolve(null)
@@ -327,7 +327,7 @@ export class ProfileService {
               follower: { id: owner.id },
               following: { id: viewerId },
             },
-            select: ['id'],
+            select: { id: true },
           }),
     ]);
 
@@ -350,7 +350,7 @@ export class ProfileService {
   private async findUserByUsername(username: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id', 'username'],
+      select: { id: true, username: true },
     });
 
     if (!user) {
@@ -369,7 +369,7 @@ export class ProfileService {
 
     const existing = await this.followRepository.findOne({
       where: { follower: { id: viewerId }, following: { id: target.id } },
-      select: ['id'],
+      select: { id: true },
     });
 
     if (existing) return;
@@ -467,7 +467,7 @@ export class ProfileService {
                 follower: { id: viewerId },
                 following: { id: person.id },
               },
-              select: ['id'],
+              select: { id: true },
             });
 
         return {
@@ -553,7 +553,7 @@ export class ProfileService {
       rows.map(async person => {
         const relation = await this.followRepository.findOne({
           where: { follower: { id: viewerId }, following: { id: person.id } },
-          select: ['id'],
+          select: { id: true },
         });
 
         return {
@@ -592,7 +592,7 @@ export class ProfileService {
   ): Promise<void> {
     const taken = await this.userRepository.findOne({
       where: { username: ILike(username) },
-      select: ['id'],
+      select: { id: true },
     });
 
     if (taken && taken.id !== userId) {
@@ -636,7 +636,7 @@ export class ProfileService {
     if (patch.name !== undefined || patch.username !== undefined) {
       const owner = await this.userRepository.findOne({
         where: { id: userId },
-        select: ['name', 'username'],
+        select: { name: true, username: true },
       });
 
       columns.searchName = buildSearchName(

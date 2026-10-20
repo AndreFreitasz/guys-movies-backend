@@ -174,7 +174,7 @@ export class WatchTogetherService {
   async tag(userId: number, input: TagInput): Promise<void> {
     const companion = await this.userRepository.findOne({
       where: { username: ILike(input.companionUsername) },
-      select: ['id', 'username'],
+      select: { id: true, username: true },
     });
 
     if (!companion) throw new NotFoundException('Perfil nao encontrado');
@@ -266,7 +266,7 @@ export class WatchTogetherService {
         try {
           const movie = await this.movieRepository.findOne({
             where: { idTmdb: link.idTmdb },
-            select: ['id'],
+            select: { id: true },
           });
 
           await this.watchedMovieRepository.insert({
@@ -285,7 +285,7 @@ export class WatchTogetherService {
         try {
           const serie = await this.serieRepository.findOne({
             where: { idTmdb: link.idTmdb },
-            select: ['id'],
+            select: { id: true },
           });
 
           await this.watchedSeasonRepository.insert({
@@ -322,7 +322,7 @@ export class WatchTogetherService {
   ): Promise<void> {
     const serie = await this.serieRepository.findOne({
       where: { idTmdb: link.idTmdb },
-      select: ['id', 'numberOfSeasons'],
+      select: { id: true, numberOfSeasons: true },
     });
 
     let watched = await this.watchedSerieRepository.findOne({

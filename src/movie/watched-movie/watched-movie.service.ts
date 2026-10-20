@@ -427,7 +427,7 @@ export class WatchedMovieService {
           idUser: Equal(userId),
           idTmdb: idTmdb,
         },
-        select: ['rating'],
+        select: { rating: true },
       });
       return ratingMovie ? ratingMovie.rating : null;
     } catch (error) {

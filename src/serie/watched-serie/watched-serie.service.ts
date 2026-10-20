@@ -639,7 +639,7 @@ export class WatchedSerieService {
           user: { id: userId },
           idTmdb: idTmdb,
         },
-        select: ['rating'],
+        select: { rating: true },
       });
       return ratingSerie ? ratingSerie.rating : null;
     } catch (error) {
