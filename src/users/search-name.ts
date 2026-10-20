@@ -8,9 +8,7 @@ export const buildSearchName = (
     .map(part => normalizeForMatch(part))
     .filter(part => part.length > 0);
 
-  const unique = parts.filter(
-    (part, index) => parts.indexOf(part) === index,
-  );
+  const unique = parts.filter((part, index) => parts.indexOf(part) === index);
 
   return unique.join(' ');
 };

@@ -7,11 +7,7 @@ import {
 } from '@nestjs/common';
 import { FindOperator } from 'typeorm';
 import { ProfileService } from './profile.service';
-import {
-  encodeCursor,
-  encodeOffsetCursor,
-  decodeOffsetCursor,
-} from './cursor';
+import { encodeCursor, encodeOffsetCursor, decodeOffsetCursor } from './cursor';
 import { User } from '../users/entities/user.entity';
 import { Follow } from '../users/entities/follow.entity';
 import { FavoriteTitle } from '../users/entities/favorite-title.entity';
@@ -274,7 +270,7 @@ describe('ProfileService', () => {
       expect(profile.followsYou).toBe(false);
     });
 
-it('resolve a capa e a data de entrada', async () => {
+    it('resolve a capa e a data de entrada', async () => {
       userRepository.findOne.mockResolvedValue({
         ...owner,
         createdAt: new Date('2024-03-08T12:00:00.000Z'),
@@ -916,7 +912,7 @@ it('resolve a capa e a data de entrada', async () => {
       expect(userRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
 
-it('usa a sintaxe de propriedade do TypeORM, nunca o alias citado a mao', async () => {
+    it('usa a sintaxe de propriedade do TypeORM, nunca o alias citado a mao', async () => {
       stubRows([]);
 
       await service.searchMembers(7, 'andre');
@@ -959,7 +955,9 @@ it('usa a sintaxe de propriedade do TypeORM, nunca o alias citado a mao', async 
     });
 
     it('devolve os usuarios com estado de seguir resolvido', async () => {
-      stubRows([{ id: 9, username: 'ana', name: 'Ana', avatarUpdatedAt: null }]);
+      stubRows([
+        { id: 9, username: 'ana', name: 'Ana', avatarUpdatedAt: null },
+      ]);
       followRepository.findOne.mockResolvedValue({ id: 1 });
       avatarRepository.find.mockResolvedValue([]);
 

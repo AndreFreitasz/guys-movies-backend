@@ -38,11 +38,7 @@ import { WatchTogetherController } from './watch-together.controller';
     MovieModule,
     SerieModule,
   ],
-  controllers: [
-    ProfileController,
-    AvatarController,
-    WatchTogetherController,
-  ],
+  controllers: [ProfileController, AvatarController, WatchTogetherController],
   providers: [
     ProfileService,
     TimelineService,

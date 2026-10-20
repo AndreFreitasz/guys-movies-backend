@@ -31,9 +31,7 @@ export class CoverCatalogService {
     return title.toLowerCase().includes(term.trim().toLowerCase());
   }
 
-  private async fetchBackdrop(
-    option: CoverOptionDto,
-  ): Promise<string | null> {
+  private async fetchBackdrop(option: CoverOptionDto): Promise<string | null> {
     const detail =
       option.type === 'movie'
         ? await this.movieService.getMovieData(option.idTmdb)

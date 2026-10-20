@@ -1,4 +1,12 @@
-import { Controller, Get, Delete, UseGuards, Param, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  UseGuards,
+  Param,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { UserLibraryService } from './user-library.service';
 import { UserLibraryDto } from './dto/user-library.dto';
 import { WatchlistDto, WatchlistAvailabilityDto } from './dto/watchlist.dto';
@@ -12,16 +20,12 @@ export class UserLibraryController {
   constructor(private readonly userLibraryService: UserLibraryService) {}
 
   @Get('library')
-  async getLibrary(
-    @CurrentUser('id') userId: number,
-  ): Promise<UserLibraryDto> {
+  async getLibrary(@CurrentUser('id') userId: number): Promise<UserLibraryDto> {
     return this.userLibraryService.getLibrary(userId);
   }
 
   @Get('watchlist')
-  async getWatchlist(
-    @CurrentUser('id') userId: number,
-  ): Promise<WatchlistDto> {
+  async getWatchlist(@CurrentUser('id') userId: number): Promise<WatchlistDto> {
     return this.userLibraryService.getWatchlist(userId);
   }
 

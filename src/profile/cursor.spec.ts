@@ -1,4 +1,9 @@
-import { encodeCursor, decodeCursor, encodeOffsetCursor, decodeOffsetCursor } from './cursor';
+import {
+  encodeCursor,
+  decodeCursor,
+  encodeOffsetCursor,
+  decodeOffsetCursor,
+} from './cursor';
 
 describe('cursor', () => {
   it('faz round trip preservando os tres campos', () => {

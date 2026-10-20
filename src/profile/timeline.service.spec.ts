@@ -173,7 +173,7 @@ describe('TimelineService', () => {
       seasonNumber: 2,
       episodeCount: 10,
       occurredAt: '2026-03-12',
-        companions: [],
+      companions: [],
     });
   });
 
@@ -270,7 +270,7 @@ describe('TimelineService', () => {
       posterPath: 'https://cdn/p.jpg',
       rating: null,
       occurredAt: '2026-03-12',
-        companions: [],
+      companions: [],
     });
   });
 });

@@ -299,31 +299,37 @@ export class ProfileService {
 
     const isSelf = owner.id === viewerId;
 
-    const [counts, favorites, cover, avatarStamps, followingRow, followsYouRow] =
-      await Promise.all([
-        this.resolveCounts(owner.id),
-        this.resolveFavorites(owner.id),
-        this.resolveCover(owner.coverType, owner.coverTmdbId),
-        this.avatarStampsFor([owner.id]),
-        isSelf
-          ? Promise.resolve(null)
-          : this.followRepository.findOne({
-              where: {
-                follower: { id: viewerId },
-                following: { id: owner.id },
-              },
-              select: ['id'],
-            }),
-        isSelf
-          ? Promise.resolve(null)
-          : this.followRepository.findOne({
-              where: {
-                follower: { id: owner.id },
-                following: { id: viewerId },
-              },
-              select: ['id'],
-            }),
-      ]);
+    const [
+      counts,
+      favorites,
+      cover,
+      avatarStamps,
+      followingRow,
+      followsYouRow,
+    ] = await Promise.all([
+      this.resolveCounts(owner.id),
+      this.resolveFavorites(owner.id),
+      this.resolveCover(owner.coverType, owner.coverTmdbId),
+      this.avatarStampsFor([owner.id]),
+      isSelf
+        ? Promise.resolve(null)
+        : this.followRepository.findOne({
+            where: {
+              follower: { id: viewerId },
+              following: { id: owner.id },
+            },
+            select: ['id'],
+          }),
+      isSelf
+        ? Promise.resolve(null)
+        : this.followRepository.findOne({
+            where: {
+              follower: { id: owner.id },
+              following: { id: viewerId },
+            },
+            select: ['id'],
+          }),
+    ]);
 
     return {
       id: owner.id,

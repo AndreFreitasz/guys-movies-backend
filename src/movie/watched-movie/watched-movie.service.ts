@@ -191,7 +191,9 @@ export class WatchedMovieService {
     }
   }
 
-  private toListItem(watched: WatchedMovie): Omit<WatchedMovieListItemDto, 'companions'> {
+  private toListItem(
+    watched: WatchedMovie,
+  ): Omit<WatchedMovieListItemDto, 'companions'> {
     return {
       idTmdb: watched.idTmdb,
       title: watched.idMovie?.title ?? null,
@@ -239,7 +241,8 @@ export class WatchedMovieService {
 
       const items: WatchedMovieListItemDto[] = watchedMovies.map(watched => ({
         ...this.toListItem(watched),
-        companions: companions.get(titleKey('movie', watched.idTmdb, null)) ?? [],
+        companions:
+          companions.get(titleKey('movie', watched.idTmdb, null)) ?? [],
       }));
 
       const ratings = items

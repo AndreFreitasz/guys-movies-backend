@@ -184,7 +184,11 @@ describe('UserLibraryService', () => {
 
     it('descarta linha cuja relacao com o catalogo sumiu', async () => {
       waitingMovieRepository.find.mockResolvedValue([
-        { idTmdb: 603, createdAt: new Date('2026-09-01T10:00:00Z'), movie: null },
+        {
+          idTmdb: 603,
+          createdAt: new Date('2026-09-01T10:00:00Z'),
+          movie: null,
+        },
       ]);
       waitingSerieRepository.find.mockResolvedValue([]);
       watchedMovieRepository.find.mockResolvedValue([]);
@@ -269,10 +273,18 @@ describe('UserLibraryService', () => {
       movieService.getMovieData.mockResolvedValue({
         providers: {
           flatrate: [
-            { provider_name: 'Netflix', logo_path: 'https://img/netflix.png', id_provider: 8 },
+            {
+              provider_name: 'Netflix',
+              logo_path: 'https://img/netflix.png',
+              id_provider: 8,
+            },
           ],
           rent: [
-            { provider_name: 'Apple TV', logo_path: 'https://img/apple.png', id_provider: 2 },
+            {
+              provider_name: 'Apple TV',
+              logo_path: 'https://img/apple.png',
+              id_provider: 2,
+            },
           ],
         },
       });
@@ -284,7 +296,9 @@ describe('UserLibraryService', () => {
           {
             type: 'movie',
             idTmdb: 603,
-            providers: [{ id: 8, name: 'Netflix', logoPath: 'https://img/netflix.png' }],
+            providers: [
+              { id: 8, name: 'Netflix', logoPath: 'https://img/netflix.png' },
+            ],
           },
         ],
         failed: false,
@@ -317,7 +331,11 @@ describe('UserLibraryService', () => {
       serieService.getSerieData.mockResolvedValue({
         providers: {
           flatrate: [
-            { provider_name: 'Max', logo_path: 'https://img/max.png', id_provider: 1899 },
+            {
+              provider_name: 'Max',
+              logo_path: 'https://img/max.png',
+              id_provider: 1899,
+            },
           ],
         },
       });
@@ -382,7 +400,9 @@ describe('UserLibraryService', () => {
     it('lanca 404 quando nada foi removido', async () => {
       waitingMovieRepository.delete.mockResolvedValue({ affected: 0 });
 
-      await expect(service.removeFromWatchlist(7, 'movie', 603)).rejects.toMatchObject({
+      await expect(
+        service.removeFromWatchlist(7, 'movie', 603),
+      ).rejects.toMatchObject({
         status: 404,
       });
     });

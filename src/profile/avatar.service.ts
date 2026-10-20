@@ -9,7 +9,7 @@ import type { Sharp } from 'sharp';
 import { UserAvatar } from '../users/entities/user-avatar.entity';
 import { User } from '../users/entities/user.entity';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const sharp = require('sharp') as typeof import('sharp').default;
 
 const AVATAR_SIZE = 512;

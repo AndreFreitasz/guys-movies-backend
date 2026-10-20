@@ -7,7 +7,6 @@ import * as dotenv from 'dotenv';
 import { SeriesModule } from 'src/series/series.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { User } from 'src/users/entities/user.entity';
 import { UsersModule } from 'src/users/users.module';
 import { AuthModule } from 'src/auth/auth.module';
 import { MovieModule } from 'src/movie/movie.module';

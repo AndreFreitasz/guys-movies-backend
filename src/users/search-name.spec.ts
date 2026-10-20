@@ -14,9 +14,7 @@ describe('buildSearchName', () => {
   });
 
   it('colapsa espacos repetidos e apara as pontas', () => {
-    expect(buildSearchName('  Andre   Luis  ', ' dre ')).toBe(
-      'andre luis dre',
-    );
+    expect(buildSearchName('  Andre   Luis  ', ' dre ')).toBe('andre luis dre');
   });
 
   it('tolera nome nulo sem virar a string "null"', () => {
