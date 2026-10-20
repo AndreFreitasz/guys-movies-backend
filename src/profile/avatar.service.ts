@@ -5,12 +5,15 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
-import type { Sharp } from 'sharp';
+import type { Sharp, SharpOptions } from 'sharp';
 import { UserAvatar } from '../users/entities/user-avatar.entity';
 import { User } from '../users/entities/user.entity';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const sharp = require('sharp') as typeof import('sharp').default;
+const sharp = require('sharp') as (
+  input?: Buffer,
+  options?: SharpOptions,
+) => Sharp;
 
 const AVATAR_SIZE = 512;
 const AVATAR_QUALITY = 90;
