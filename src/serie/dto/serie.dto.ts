@@ -30,6 +30,7 @@ export class SerieDto {
 }
 
 export class CastDto {
+  id: number;
   name: string;
   character: string;
   profile_path: string | null;
