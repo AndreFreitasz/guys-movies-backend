@@ -1,3 +1,5 @@
+import { CriticScoresDto } from '../../ratings/critic-scores.dto';
+
 export class MovieDto {
   id: number;
   title: string;
@@ -11,6 +13,7 @@ export class MovieDto {
   providers?: ProvidersDto;
   cast?: CastDto[];
   director?: DirectorDto | null;
+  critic_scores: CriticScoresDto;
 }
 
 export class CastDto {

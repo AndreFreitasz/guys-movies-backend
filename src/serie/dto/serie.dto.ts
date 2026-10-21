@@ -1,5 +1,7 @@
 import { SeasonDto } from './season.dto';
 
+import { CriticScoresDto } from '../../ratings/critic-scores.dto';
+
 export class SerieDto {
   id: number;
   name: string;
@@ -16,6 +18,7 @@ export class SerieDto {
   providers?: ProvidersDto;
   cast?: CastDto[];
   created_by?: CreatorDto[];
+  critic_scores: CriticScoresDto;
 
   // aliases em camelCase para compatibilidade com payloads do cliente
   posterPath?: string;

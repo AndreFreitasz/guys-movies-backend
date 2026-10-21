@@ -4,6 +4,7 @@ import { CastDto, ProvidersDto, SerieDto } from './dto/serie.dto';
 import { SeasonDto } from './dto/season.dto';
 import { SeasonRuntimeDto } from './dto/season-runtime.dto';
 import { TtlCache } from '../common/ttl-cache';
+import { RatingsService } from '../ratings/ratings.service';
 
 const PROVIDER_TYPES = ['flatrate', 'buy', 'rent'] as const;
 const SEASON_APPEND_LIMIT = 20;
@@ -20,6 +21,8 @@ export class SerieService {
     24 * 60 * 60 * 1000,
     500,
   );
+
+  constructor(private readonly ratingsService: RatingsService) {}
 
   private buildImageUrl(baseUrl: string, path?: string | null): string | null {
     return path ? `${baseUrl}${path}` : null;
@@ -79,10 +82,13 @@ export class SerieService {
     const url =
       `https://api.themoviedb.org/3/tv/${idSerie}` +
       `?api_key=${process.env.TMDB_API_KEY}&language=pt-BR` +
-      `&append_to_response=credits,watch/providers`;
+      `&append_to_response=credits,watch/providers,external_ids`;
 
     const response = await axios.get(url, { timeout: 8000 });
     const serie = response.data;
+    const criticScores = await this.ratingsService.forImdbId(
+      serie.external_ids?.imdb_id,
+    );
 
     return {
       id: serie.id,
@@ -106,6 +112,7 @@ export class SerieService {
         : null,
       providers: this.mapProviders(serie['watch/providers']),
       cast: this.mapCast(serie.credits),
+      critic_scores: criticScores,
       created_by: Array.isArray(serie.created_by)
         ? serie.created_by.map((creator: any) => ({
             name: creator.name,

@@ -7,11 +7,13 @@ import { WatchedSerie } from './entities/watched-serie.entity';
 import { Series } from './entities/series.entity';
 import { WatchedSeasonService } from './watched-serie/watched-season.service';
 import { CreatedSerieModule } from './created-serie/created-serie.module';
+import { RatingsModule } from '../ratings/ratings.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([WatchedSeason, WatchedSerie, Series]),
     CreatedSerieModule,
+    RatingsModule,
   ],
   controllers: [SerieController],
   providers: [SerieService, WatchedSeasonService],

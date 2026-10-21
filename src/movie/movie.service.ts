@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { CastDto, MovieDto, ProvidersDto } from './dto/movie.dto';
 import { TtlCache } from '../common/ttl-cache';
+import { RatingsService } from '../ratings/ratings.service';
 
 const PROVIDER_TYPES = ['flatrate', 'buy', 'rent'] as const;
 
@@ -12,6 +13,8 @@ export class MovieService {
   private readonly sizeImageBackdrop = 'https://image.tmdb.org/t/p/w1280';
   private readonly sizeImageCast = 'https://image.tmdb.org/t/p/w185';
   private readonly cache = new TtlCache<MovieDto>(60 * 60 * 1000, 500);
+
+  constructor(private readonly ratingsService: RatingsService) {}
 
   private buildImageUrl(baseUrl: string, path?: string | null): string | null {
     return path ? `${baseUrl}${path}` : null;
@@ -74,6 +77,7 @@ export class MovieService {
 
     const response = await axios.get(url, { timeout: 8000 });
     const movie = response.data;
+    const criticScores = await this.ratingsService.forImdbId(movie.imdb_id);
 
     return {
       id: movie.id,
@@ -93,6 +97,7 @@ export class MovieService {
       providers: this.mapProviders(movie['watch/providers']),
       cast: this.mapCast(movie.credits),
       director: this.mapDirector(movie.credits),
+      critic_scores: criticScores,
     };
   }
 
