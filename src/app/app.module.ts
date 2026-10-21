@@ -18,6 +18,7 @@ import { WatchedSerieModule } from 'src/serie/watched-serie/watched-serie.module
 import { WaitingSerieModule } from 'src/serie/waiting-serie/waiting-serie.module';
 import { CreatedSerieModule } from 'src/serie/created-serie/created-serie.module';
 import { SearchModule } from 'src/search/search.module';
+import { PersonModule } from 'src/person/person.module';
 import { UserLibraryModule } from 'src/user-library/user-library.module';
 import { ProfileModule } from 'src/profile/profile.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
@@ -95,6 +96,7 @@ dotenv.config();
     WaitingSerieModule,
     CreatedSerieModule,
     SearchModule,
+    PersonModule,
     UserLibraryModule,
     ProfileModule,
     HealthModule,
