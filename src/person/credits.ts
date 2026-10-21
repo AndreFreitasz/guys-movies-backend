@@ -98,3 +98,11 @@ export const normalizeCredits = (
 
   return result;
 };
+
+export const dropImplausibleCredits = (
+  credits: PersonCredit[],
+  birthYear: number | null,
+): PersonCredit[] =>
+  birthYear === null
+    ? credits
+    : credits.filter((credit) => credit.year === null || credit.year >= birthYear);

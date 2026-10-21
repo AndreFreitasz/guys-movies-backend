@@ -51,7 +51,12 @@ export const buildStats = (
   credits: PersonCredit[],
   genres: GenreCount[],
 ): PersonStats => {
-  const years = credits
+  const movieCredits = credits.filter(
+    (credit) => credit.mediaType === 'movie',
+  );
+  const spanCredits = movieCredits.length ? movieCredits : credits;
+
+  const years = spanCredits
     .map((credit) => credit.year)
     .filter((year): year is number => year !== null);
 

@@ -120,6 +120,30 @@ describe('buildStats', () => {
       bestRated: null,
     });
   });
+
+  it('calcula o intervalo de carreira apenas com creditos de filme', () => {
+    const credits = [
+      credit({ id: 1, mediaType: 'tv', year: 1953 }),
+      credit({ id: 2, mediaType: 'movie', year: 1980 }),
+    ];
+
+    const stats = buildStats(credits, []);
+
+    expect(stats.firstYear).toBe(1980);
+    expect(stats.lastYear).toBe(1980);
+  });
+
+  it('cai nos creditos de tv quando nao ha filme nenhum', () => {
+    const credits = [
+      credit({ id: 1, mediaType: 'tv', year: 1974 }),
+      credit({ id: 2, mediaType: 'tv', year: 2001 }),
+    ];
+
+    const stats = buildStats(credits, []);
+
+    expect(stats.firstYear).toBe(1974);
+    expect(stats.lastYear).toBe(2001);
+  });
 });
 
 describe('pickDefaultDepartment', () => {

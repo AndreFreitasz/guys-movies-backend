@@ -2,7 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { TtlCache } from '../common/ttl-cache';
 import { GenreMapService } from './genre-map.service';
-import { normalizeCredits } from './credits';
+import { dropImplausibleCredits, normalizeCredits } from './credits';
 import {
   buildStats,
   countGenres,
@@ -24,6 +24,11 @@ interface PersonAggregate {
 
 const PERSON_TTL_MS = 6 * 60 * 60 * 1000;
 const SEARCH_TTL_MS = 5 * 60 * 1000;
+
+const parseBirthYear = (birthday: string | null | undefined): number | null => {
+  const year = Number((birthday ?? '').slice(0, 4));
+  return Number.isFinite(year) && year > 0 ? year : null;
+};
 
 @Injectable()
 export class PersonService {
@@ -66,9 +71,13 @@ export class PersonService {
           );
         }
 
-        const credits = normalizeCredits(
-          data.combined_credits?.cast ?? [],
-          data.combined_credits?.crew ?? [],
+        const birthYear = parseBirthYear(data.birthday);
+        const credits = dropImplausibleCredits(
+          normalizeCredits(
+            data.combined_credits?.cast ?? [],
+            data.combined_credits?.crew ?? [],
+          ),
+          birthYear,
         );
 
         const genreMap = await this.genreMapService.resolve();

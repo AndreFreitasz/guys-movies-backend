@@ -1,5 +1,10 @@
-import { isNoiseCredit, normalizeCredits, departmentSlug } from './credits';
-import { RawCredit } from './interfaces/person.interface';
+import {
+  dropImplausibleCredits,
+  isNoiseCredit,
+  normalizeCredits,
+  departmentSlug,
+} from './credits';
+import { PersonCredit, RawCredit } from './interfaces/person.interface';
 
 const base: RawCredit = {
   id: 1,
@@ -145,5 +150,41 @@ describe('normalizeCredits', () => {
     const credits = normalizeCredits([{ ...base, release_date: '' }], []);
 
     expect(credits[0].year).toBeNull();
+  });
+});
+
+describe('dropImplausibleCredits', () => {
+  const credit = (over: Partial<PersonCredit>): PersonCredit => ({
+    id: 1,
+    mediaType: 'movie',
+    title: 'Filme',
+    posterPath: null,
+    year: 2000,
+    voteAverage: null,
+    voteCount: 0,
+    genreIds: [],
+    role: 'Alguem',
+    department: 'acting',
+    ...over,
+  });
+
+  it('descarta credito datado antes do nascimento', () => {
+    const credits = [credit({ id: 1, year: 1953 }), credit({ id: 2, year: 1980 })];
+
+    expect(dropImplausibleCredits(credits, 1956)).toEqual([
+      credit({ id: 2, year: 1980 }),
+    ]);
+  });
+
+  it('mantem credito sem ano mesmo com birthYear definido', () => {
+    const credits = [credit({ id: 1, year: null })];
+
+    expect(dropImplausibleCredits(credits, 1956)).toEqual(credits);
+  });
+
+  it('mantem tudo quando birthYear e nulo', () => {
+    const credits = [credit({ id: 1, year: 1953 }), credit({ id: 2, year: 1980 })];
+
+    expect(dropImplausibleCredits(credits, null)).toEqual(credits);
   });
 });
