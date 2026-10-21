@@ -11,7 +11,7 @@ const credit = (over: Partial<PersonCredit>): PersonCredit => ({
   id: 1,
   mediaType: 'movie',
   title: 'Filme',
-  posterUrl: null,
+  posterPath: null,
   year: 2000,
   voteAverage: 7,
   voteCount: 1000,

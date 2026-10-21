@@ -57,13 +57,13 @@ describe('departmentSlug', () => {
 
 describe('normalizeCredits', () => {
   it('normaliza elenco com o personagem como papel', () => {
-    const [credit] = normalizeCredits([base], [], 'https://img');
+    const [credit] = normalizeCredits([base], []);
 
     expect(credit).toEqual({
       id: 1,
       mediaType: 'movie',
       title: 'Forrest Gump',
-      posterUrl: 'https://img/abc.jpg',
+      posterPath: '/abc.jpg',
       year: 1994,
       voteAverage: 8.462,
       voteCount: 30708,
@@ -83,7 +83,7 @@ describe('normalizeCredits', () => {
       genre_ids: [18],
     };
 
-    const [credit] = normalizeCredits([serie], [], 'https://img');
+    const [credit] = normalizeCredits([serie], []);
 
     expect(credit.title).toBe('Band of Brothers');
     expect(credit.year).toBe(2001);
@@ -97,7 +97,7 @@ describe('normalizeCredits', () => {
       department: 'Directing',
     };
 
-    const [credit] = normalizeCredits([], [crew], 'https://img');
+    const [credit] = normalizeCredits([], [crew]);
 
     expect(credit.role).toBe('Director');
     expect(credit.department).toBe('directing');
@@ -111,9 +111,7 @@ describe('normalizeCredits', () => {
       department: 'Production',
     };
 
-    expect(normalizeCredits([], [crew, { ...crew }], 'https://img')).toHaveLength(
-      1,
-    );
+    expect(normalizeCredits([], [crew, { ...crew }])).toHaveLength(1);
   });
 
   it('mantem o mesmo titulo em departamentos diferentes', () => {
@@ -124,7 +122,7 @@ describe('normalizeCredits', () => {
       department: 'Directing',
     };
 
-    const credits = normalizeCredits([base], [crew], 'https://img');
+    const credits = normalizeCredits([base], [crew]);
 
     expect(credits).toHaveLength(2);
     expect(credits.map((credit) => credit.department).sort()).toEqual([
@@ -137,18 +135,14 @@ describe('normalizeCredits', () => {
     const noise: RawCredit = { ...base, id: 9, character: 'Self' };
     const noPoster: RawCredit = { ...base, id: 10, poster_path: null };
 
-    const credits = normalizeCredits([noise, noPoster], [], 'https://img');
+    const credits = normalizeCredits([noise, noPoster], []);
 
     expect(credits).toHaveLength(1);
-    expect(credits[0].posterUrl).toBeNull();
+    expect(credits[0].posterPath).toBeNull();
   });
 
   it('aceita data vazia sem quebrar', () => {
-    const credits = normalizeCredits(
-      [{ ...base, release_date: '' }],
-      [],
-      'https://img',
-    );
+    const credits = normalizeCredits([{ ...base, release_date: '' }], []);
 
     expect(credits[0].year).toBeNull();
   });

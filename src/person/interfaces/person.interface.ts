@@ -20,7 +20,7 @@ export interface PersonCredit {
   id: number;
   mediaType: MediaType;
   title: string;
-  posterUrl: string | null;
+  posterPath: string | null;
   year: number | null;
   voteAverage: number | null;
   voteCount: number;
@@ -59,7 +59,7 @@ export interface PersonCreditsPage {
 export interface PersonProfile {
   id: number;
   name: string;
-  profileUrl: string | null;
+  profilePath: string | null;
   biography: string | null;
   biographyLanguage: 'pt' | 'en' | null;
   birthday: string | null;
@@ -77,7 +77,7 @@ export interface PersonProfile {
 export interface PersonSearchResult {
   id: number;
   name: string;
-  profileUrl: string | null;
+  profilePath: string | null;
   knownForDepartment: string | null;
   knownFor: string[];
 }

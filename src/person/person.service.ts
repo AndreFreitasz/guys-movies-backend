@@ -29,8 +29,6 @@ const SEARCH_TTL_MS = 5 * 60 * 1000;
 export class PersonService {
   private readonly apiKey = process.env.TMDB_API_KEY;
   private readonly baseUrl = 'https://api.themoviedb.org/3';
-  private readonly posterBaseUrl = 'https://image.tmdb.org/t/p/w342';
-  private readonly profileBaseUrl = 'https://image.tmdb.org/t/p/w300';
   private readonly cache = new TtlCache<PersonAggregate>(PERSON_TTL_MS, 100);
   private readonly searchCache = new TtlCache<PersonSearchResult[]>(
     SEARCH_TTL_MS,
@@ -71,7 +69,6 @@ export class PersonService {
         const credits = normalizeCredits(
           data.combined_credits?.cast ?? [],
           data.combined_credits?.crew ?? [],
-          this.posterBaseUrl,
         );
 
         const genreMap = await this.genreMapService.resolve();
@@ -91,9 +88,7 @@ export class PersonService {
           profile: {
             id: data.id,
             name: data.name,
-            profileUrl: data.profile_path
-              ? `${this.profileBaseUrl}${data.profile_path}`
-              : null,
+            profilePath: data.profile_path ?? null,
             biography,
             biographyLanguage,
             birthday: data.birthday ?? null,
@@ -163,9 +158,7 @@ export class PersonService {
         .map((result: any) => ({
           id: result.id,
           name: result.name,
-          profileUrl: result.profile_path
-            ? `${this.profileBaseUrl}${result.profile_path}`
-            : null,
+          profilePath: result.profile_path ?? null,
           knownForDepartment: result.known_for_department ?? null,
           knownFor: (result.known_for ?? [])
             .map((item: any) => item.title || item.name)

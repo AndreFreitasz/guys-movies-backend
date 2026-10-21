@@ -52,12 +52,11 @@ const toCredit = (
   credit: RawCredit,
   department: string,
   role: string,
-  imageBaseUrl: string,
 ): PersonCredit => ({
   id: credit.id,
   mediaType: (credit.media_type ?? 'movie') as MediaType,
   title: credit.title || credit.name || 'Sem título',
-  posterUrl: credit.poster_path ? `${imageBaseUrl}${credit.poster_path}` : null,
+  posterPath: credit.poster_path ?? null,
   year: parseYear(credit),
   voteAverage:
     typeof credit.vote_average === 'number' ? credit.vote_average : null,
@@ -70,7 +69,6 @@ const toCredit = (
 export const normalizeCredits = (
   cast: RawCredit[],
   crew: RawCredit[],
-  imageBaseUrl: string,
 ): PersonCredit[] => {
   const seen = new Set<string>();
   const result: PersonCredit[] = [];
@@ -84,7 +82,7 @@ export const normalizeCredits = (
 
   for (const entry of Array.isArray(cast) ? cast : []) {
     if (isNoiseCredit(entry)) continue;
-    push(toCredit(entry, 'acting', entry.character || 'Elenco', imageBaseUrl));
+    push(toCredit(entry, 'acting', entry.character || 'Elenco'));
   }
 
   for (const entry of Array.isArray(crew) ? crew : []) {
@@ -94,7 +92,6 @@ export const normalizeCredits = (
         entry,
         departmentSlug(entry.department ?? ''),
         entry.job || 'Equipe',
-        imageBaseUrl,
       ),
     );
   }
