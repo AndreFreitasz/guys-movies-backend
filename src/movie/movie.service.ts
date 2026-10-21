@@ -25,6 +25,7 @@ export class MovieService {
     if (!Array.isArray(cast)) return [];
 
     return cast.slice(0, 20).map((actor: any) => ({
+      id: actor.id,
       name: actor.name,
       character: actor.character,
       profile_path: this.buildImageUrl(this.sizeImageCast, actor.profile_path),
@@ -39,6 +40,7 @@ export class MovieService {
     if (!director) return null;
 
     return {
+      id: director.id,
       name: director.name,
       profile_path: this.buildImageUrl(
         this.sizeImageCast,

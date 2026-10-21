@@ -33,6 +33,7 @@ export class SerieService {
     if (!Array.isArray(cast)) return [];
 
     return cast.slice(0, 20).map((actor: any) => ({
+      id: actor.id,
       name: actor.name,
       character: actor.character,
       profile_path: this.buildImageUrl(this.sizeImageCast, actor.profile_path),

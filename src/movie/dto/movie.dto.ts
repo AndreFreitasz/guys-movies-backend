@@ -17,6 +17,7 @@ export class MovieDto {
 }
 
 export class CastDto {
+  id: number;
   name: string;
   character: string;
   profile_path: string | null;
@@ -35,6 +36,7 @@ export class ProvidersDto {
 }
 
 export class DirectorDto {
+  id: number;
   name: string;
   profile_path: string | null;
 }
