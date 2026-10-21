@@ -26,6 +26,12 @@ interface RankedEvent {
   id: number;
 }
 
+const yearOf = (date: string | null | undefined): number | null => {
+  if (!date) return null;
+  const year = Number.parseInt(String(date).slice(0, 4), 10);
+  return Number.isInteger(year) ? year : null;
+};
+
 const toDateOnly = (value: Date | string | null): string | null => {
   if (!value) return null;
   if (typeof value === 'string') return value.slice(0, 10);
@@ -116,6 +122,7 @@ export class TimelineService {
           title: row.idMovie.title,
           posterPath: row.idMovie.posterPath ?? null,
           rating: row.rating ?? null,
+          year: yearOf(row.idMovie.releaseDate),
           occurredAt,
           companions: companions.get(titleKey('movie', row.idTmdb, null)) ?? [],
         },
@@ -137,6 +144,7 @@ export class TimelineService {
           posterPath: row.serie.posterPath ?? null,
           seasonNumber: row.seasonNumber,
           episodeCount: row.episodeCount,
+          year: yearOf(row.serie.firstAirDate),
           occurredAt,
           companions:
             companions.get(titleKey('serie', row.idTmdb, row.seasonNumber)) ??

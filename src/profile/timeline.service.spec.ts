@@ -46,7 +46,11 @@ describe('TimelineService', () => {
     rating: 4.5,
     watchedAt,
     createdAt: new Date('2020-01-01T00:00:00Z'),
-    idMovie: { title, posterPath: 'https://cdn/p.jpg' },
+    idMovie: {
+      title,
+      posterPath: 'https://cdn/p.jpg',
+      releaseDate: '1999-03-31',
+    },
   });
 
   const season = (id: number, watchedAt: string | null) => ({
@@ -56,7 +60,7 @@ describe('TimelineService', () => {
     episodeCount: 10,
     watchedAt,
     createdAt: new Date('2020-01-01T00:00:00Z'),
-    serie: { name: 'Severance', posterPath: null },
+    serie: { name: 'Severance', posterPath: null, firstAirDate: '2022-02-18' },
   });
 
   it('estoura 404 quando o username nao existe', async () => {
@@ -172,6 +176,7 @@ describe('TimelineService', () => {
       posterPath: null,
       seasonNumber: 2,
       episodeCount: 10,
+      year: 2022,
       occurredAt: '2026-03-12',
       companions: [],
     });
@@ -256,6 +261,19 @@ describe('TimelineService', () => {
     expect(result.events).toHaveLength(20);
   });
 
+  it('deixa o ano nulo quando o titulo nao tem data', async () => {
+    watchedMovieRepository.find.mockResolvedValue([
+      {
+        ...movie(1, '2026-03-12'),
+        idMovie: { title: 'Duna', posterPath: null, releaseDate: null },
+      },
+    ]);
+
+    const result = await service.getTimeline('andre');
+
+    expect(result.events[0]).toMatchObject({ year: null });
+  });
+
   it('monta evento de filme completo com rating nulo', async () => {
     watchedMovieRepository.find.mockResolvedValue([
       { ...movie(1, '2026-03-12'), rating: null },
@@ -269,6 +287,7 @@ describe('TimelineService', () => {
       title: 'Duna',
       posterPath: 'https://cdn/p.jpg',
       rating: null,
+      year: 1999,
       occurredAt: '2026-03-12',
       companions: [],
     });

@@ -66,6 +66,7 @@ export class TimelineMovieEventDto {
   title: string;
   posterPath: string | null;
   rating: number | null;
+  year: number | null;
   occurredAt: string;
   companions: UserSummaryDto[];
 }
@@ -79,6 +80,7 @@ export class TimelineSeasonEventDto {
   episodeCount: number;
   occurredAt: string;
   companions: UserSummaryDto[];
+  year: number | null;
 }
 
 export type TimelineEventDto = TimelineMovieEventDto | TimelineSeasonEventDto;
