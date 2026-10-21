@@ -52,61 +52,75 @@ export class PersonService {
   }
 
   private async loadAggregate(id: number): Promise<PersonAggregate> {
-    return this.cache.resolve(String(id), async () => {
-      const response = await axios.get<any>(
-        `${this.baseUrl}/person/${id}?api_key=${this.apiKey}&language=pt-BR` +
-          `&append_to_response=combined_credits`,
-        { timeout: 10000 },
-      );
+    try {
+      return await this.cache.resolve(String(id), async () => {
+        const response = await axios.get<any>(
+          `${this.baseUrl}/person/${id}?api_key=${this.apiKey}&language=pt-BR` +
+            `&append_to_response=combined_credits`,
+          { timeout: 10000 },
+        );
 
-      const data = response.data;
-      if (!data?.id) {
+        const data = response.data;
+        if (!data?.id) {
+          throw new HttpException(
+            'Pessoa não encontrada',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        const credits = normalizeCredits(
+          data.combined_credits?.cast ?? [],
+          data.combined_credits?.crew ?? [],
+          this.posterBaseUrl,
+        );
+
+        const genreMap = await this.genreMapService.resolve();
+        const genres = countGenres(credits, genreMap);
+        const departments = summarizeDepartments(credits);
+
+        let biography = (data.biography ?? '').trim() || null;
+        let biographyLanguage: 'pt' | 'en' | null = biography ? 'pt' : null;
+
+        if (!biography) {
+          biography = await this.fetchEnglishBiography(id);
+          biographyLanguage = biography ? 'en' : null;
+        }
+
+        return {
+          credits,
+          profile: {
+            id: data.id,
+            name: data.name,
+            profileUrl: data.profile_path
+              ? `${this.profileBaseUrl}${data.profile_path}`
+              : null,
+            biography,
+            biographyLanguage,
+            birthday: data.birthday ?? null,
+            deathday: data.deathday ?? null,
+            placeOfBirth: data.place_of_birth ?? null,
+            knownForDepartment: data.known_for_department ?? null,
+            departments,
+            genres,
+            stats: buildStats(credits, genres),
+            highlights: pickHighlights(credits),
+            defaultDepartment: pickDefaultDepartment(
+              departments,
+              data.known_for_department ?? null,
+            ),
+          },
+        };
+      });
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         throw new HttpException('Pessoa não encontrada', HttpStatus.NOT_FOUND);
       }
-
-      const credits = normalizeCredits(
-        data.combined_credits?.cast ?? [],
-        data.combined_credits?.crew ?? [],
-        this.posterBaseUrl,
+      throw new HttpException(
+        `Erro ao buscar dados da pessoa: ${error.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
-
-      const genreMap = await this.genreMapService.resolve();
-      const genres = countGenres(credits, genreMap);
-      const departments = summarizeDepartments(credits);
-
-      let biography = (data.biography ?? '').trim() || null;
-      let biographyLanguage: 'pt' | 'en' | null = biography ? 'pt' : null;
-
-      if (!biography) {
-        biography = await this.fetchEnglishBiography(id);
-        biographyLanguage = biography ? 'en' : null;
-      }
-
-      return {
-        credits,
-        profile: {
-          id: data.id,
-          name: data.name,
-          profileUrl: data.profile_path
-            ? `${this.profileBaseUrl}${data.profile_path}`
-            : null,
-          biography,
-          biographyLanguage,
-          birthday: data.birthday ?? null,
-          deathday: data.deathday ?? null,
-          placeOfBirth: data.place_of_birth ?? null,
-          knownForDepartment: data.known_for_department ?? null,
-          departments,
-          genres,
-          stats: buildStats(credits, genres),
-          highlights: pickHighlights(credits),
-          defaultDepartment: pickDefaultDepartment(
-            departments,
-            data.known_for_department ?? null,
-          ),
-        },
-      };
-    });
+    }
   }
 
   async getProfile(id: number): Promise<PersonProfile> {

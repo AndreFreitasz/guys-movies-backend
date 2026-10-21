@@ -1,10 +1,12 @@
 import axios from 'axios';
+import { HttpException } from '@nestjs/common';
 import { PersonService } from './person.service';
 import { GenreMapService } from './genre-map.service';
 
 jest.mock('axios');
 
 const mockedGet = axios.get as jest.Mock;
+const mockedIsAxiosError = axios.isAxiosError as unknown as jest.Mock;
 
 const genreMap = {
   resolve: jest.fn().mockResolvedValue({
@@ -54,6 +56,8 @@ describe('PersonService', () => {
   beforeEach(() => {
     mockedGet.mockReset();
     mockedGet.mockResolvedValue({ data: tmdbPerson });
+    mockedIsAxiosError.mockReset();
+    mockedIsAxiosError.mockReturnValue(false);
   });
 
   it('monta o perfil sem os creditos de ruido', async () => {
@@ -96,11 +100,36 @@ describe('PersonService', () => {
     expect(profile.biographyLanguage).toBe('en');
   });
 
-  it('estoura 404 quando o TMDB nao conhece a pessoa', async () => {
+  it('estoura 404 quando o TMDB responde 404 para o id', async () => {
+    const axiosError: unknown = Object.assign(
+      new Error('Request failed with status code 404'),
+      { isAxiosError: true, response: { status: 404 } },
+    );
+    mockedGet.mockRejectedValue(axiosError);
+    mockedIsAxiosError.mockReturnValue(true);
+
+    const service = new PersonService(genreMap);
+
+    expect.assertions(2);
+    try {
+      await service.getProfile(999999999);
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(404);
+    }
+  });
+
+  it('estoura 404 quando o TMDB responde 200 com corpo sem id', async () => {
     mockedGet.mockResolvedValue({ data: { success: false } });
 
     const service = new PersonService(genreMap);
 
-    await expect(service.getProfile(999999999)).rejects.toThrow();
+    expect.assertions(2);
+    try {
+      await service.getProfile(999999999);
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(404);
+    }
   });
 });
