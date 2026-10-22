@@ -71,6 +71,7 @@ export interface PersonProfile {
   stats: PersonStats;
   highlights: PersonCredit[];
   defaultDepartment: string;
+  movieIds: number[];
   credits: PersonCreditsPage;
 }
 

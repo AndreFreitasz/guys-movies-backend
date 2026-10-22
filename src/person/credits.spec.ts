@@ -94,7 +94,7 @@ describe('normalizeCredits', () => {
     expect(credit.year).toBe(2001);
   });
 
-  it('usa o job como papel na equipe', () => {
+  it('usa o job traduzido como papel na equipe', () => {
     const crew: RawCredit = {
       ...base,
       character: undefined,
@@ -104,8 +104,30 @@ describe('normalizeCredits', () => {
 
     const [credit] = normalizeCredits([], [crew]);
 
-    expect(credit.role).toBe('Director');
+    expect(credit.role).toBe('Diretor');
     expect(credit.department).toBe('directing');
+  });
+
+  it('mantem o job sem tradução conhecida', () => {
+    const crew: RawCredit = {
+      ...base,
+      character: undefined,
+      job: 'Casting Director',
+      department: 'Production',
+    };
+
+    const [credit] = normalizeCredits([], [crew]);
+
+    expect(credit.role).toBe('Casting Director');
+  });
+
+  it('nao traduz o nome do personagem no elenco', () => {
+    const acting: RawCredit = { ...base, character: 'Producer' };
+
+    const [credit] = normalizeCredits([acting], []);
+
+    expect(credit.role).toBe('Producer');
+    expect(credit.department).toBe('acting');
   });
 
   it('deduplica o mesmo titulo com o mesmo papel no mesmo departamento', () => {

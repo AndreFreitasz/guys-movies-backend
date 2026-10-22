@@ -144,6 +144,29 @@ describe('buildStats', () => {
     expect(stats.firstYear).toBe(1974);
     expect(stats.lastYear).toBe(2001);
   });
+
+  it('nao encurta o fim de carreira de quem tem um unico filme e muita tv', () => {
+    const credits = [
+      credit({ id: 1, mediaType: 'movie', year: 2014 }),
+      credit({ id: 2, mediaType: 'tv', year: 1990 }),
+      credit({ id: 3, mediaType: 'tv', year: 2020 }),
+    ];
+
+    const stats = buildStats(credits, []);
+
+    expect(stats.firstYear).toBe(2014);
+    expect(stats.lastYear).toBe(2020);
+  });
+
+  it('conta o mesmo titulo uma vez e titulos diferentes separadamente', () => {
+    const credits = [
+      credit({ id: 1, mediaType: 'movie', department: 'acting' }),
+      credit({ id: 1, mediaType: 'movie', department: 'directing' }),
+      credit({ id: 1, mediaType: 'tv', department: 'acting' }),
+    ];
+
+    expect(buildStats(credits, []).totalTitles).toBe(2);
+  });
 });
 
 describe('pickDefaultDepartment', () => {
@@ -162,5 +185,14 @@ describe('pickDefaultDepartment', () => {
 
   it('devolve acting quando nao ha departamento algum', () => {
     expect(pickDefaultDepartment([], null)).toBe('acting');
+  });
+
+  it('cai no de maior volume quando o principal da pessoa e nulo, mesmo com equipe presente', () => {
+    const sorted = [
+      { key: 'acting', label: 'Atuação', count: 50 },
+      { key: 'crew', label: 'Equipe', count: 2 },
+    ];
+
+    expect(pickDefaultDepartment(sorted, null)).toBe('acting');
   });
 });

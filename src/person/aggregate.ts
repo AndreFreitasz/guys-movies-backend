@@ -54,9 +54,13 @@ export const buildStats = (
   const movieCredits = credits.filter(
     (credit) => credit.mediaType === 'movie',
   );
-  const spanCredits = movieCredits.length ? movieCredits : credits;
+  const firstYearCredits = movieCredits.length ? movieCredits : credits;
 
-  const years = spanCredits
+  const firstYearCandidates = firstYearCredits
+    .map((credit) => credit.year)
+    .filter((year): year is number => year !== null);
+
+  const lastYearCandidates = credits
     .map((credit) => credit.year)
     .filter((year): year is number => year !== null);
 
@@ -73,8 +77,12 @@ export const buildStats = (
 
   return {
     totalTitles: uniqueTitles.size,
-    firstYear: years.length ? Math.min(...years) : null,
-    lastYear: years.length ? Math.max(...years) : null,
+    firstYear: firstYearCandidates.length
+      ? Math.min(...firstYearCandidates)
+      : null,
+    lastYear: lastYearCandidates.length
+      ? Math.max(...lastYearCandidates)
+      : null,
     topGenre: genres[0]?.name ?? null,
     bestRated: bestRated ?? null,
   };
@@ -85,8 +93,9 @@ export const pickDefaultDepartment = (
   knownForDepartment: string | null,
 ): string => {
   if (!departments.length) return 'acting';
+  if (!knownForDepartment) return departments[0].key;
 
-  const preferred = departmentSlug(knownForDepartment ?? '');
+  const preferred = departmentSlug(knownForDepartment);
   const match = departments.find((department) => department.key === preferred);
 
   return match ? match.key : departments[0].key;

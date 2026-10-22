@@ -23,6 +23,27 @@ export const DEPARTMENT_LABELS: Record<string, string> = {
   lighting: 'Iluminação',
 };
 
+export const JOB_LABELS: Record<string, string> = {
+  Director: 'Diretor',
+  Writer: 'Roteirista',
+  Screenplay: 'Roteiro',
+  Story: 'História',
+  Producer: 'Produtor',
+  'Executive Producer': 'Produtor executivo',
+  'Co-Producer': 'Coprodutor',
+  'Associate Producer': 'Produtor associado',
+  Creator: 'Criador',
+  Characters: 'Personagens',
+  Novel: 'Romance',
+  'Original Story': 'História original',
+  Teleplay: 'Teleplay',
+  Editor: 'Montagem',
+  'Director of Photography': 'Direção de fotografia',
+  'Original Music Composer': 'Trilha sonora',
+};
+
+export const jobLabel = (job: string): string => JOB_LABELS[job] ?? job;
+
 export const departmentSlug = (department: string): string =>
   (department || 'crew')
     .toLowerCase()
@@ -91,7 +112,7 @@ export const normalizeCredits = (
       toCredit(
         entry,
         departmentSlug(entry.department ?? ''),
-        entry.job || 'Equipe',
+        entry.job ? jobLabel(entry.job) : 'Equipe',
       ),
     );
   }

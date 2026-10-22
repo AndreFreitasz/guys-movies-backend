@@ -2,7 +2,12 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import axios from 'axios';
 import { TtlCache } from '../common/ttl-cache';
 import { GenreMapService } from './genre-map.service';
-import { dropImplausibleCredits, normalizeCredits } from './credits';
+import {
+  departmentLabel,
+  departmentSlug,
+  dropImplausibleCredits,
+  normalizeCredits,
+} from './credits';
 import {
   buildStats,
   countGenres,
@@ -83,6 +88,13 @@ export class PersonService {
         const genreMap = await this.genreMapService.resolve();
         const genres = countGenres(credits, genreMap);
         const departments = summarizeDepartments(credits);
+        const movieIds = [
+          ...new Set(
+            credits
+              .filter((credit) => credit.mediaType === 'movie')
+              .map((credit) => credit.id),
+          ),
+        ].sort((left, right) => left - right);
 
         let biography = (data.biography ?? '').trim() || null;
         let biographyLanguage: 'pt' | 'en' | null = biography ? 'pt' : null;
@@ -112,6 +124,7 @@ export class PersonService {
               departments,
               data.known_for_department ?? null,
             ),
+            movieIds,
           },
         };
       });
@@ -168,7 +181,9 @@ export class PersonService {
           id: result.id,
           name: result.name,
           profilePath: result.profile_path ?? null,
-          knownForDepartment: result.known_for_department ?? null,
+          knownForDepartment: result.known_for_department
+            ? departmentLabel(departmentSlug(result.known_for_department))
+            : null,
           knownFor: (result.known_for ?? [])
             .map((item: any) => item.title || item.name)
             .filter(Boolean)
