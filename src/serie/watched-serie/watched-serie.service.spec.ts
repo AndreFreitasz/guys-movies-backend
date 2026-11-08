@@ -112,6 +112,21 @@ describe('WatchedSerieService.rateSerie', () => {
       where: { user: { id: 42 }, idTmdb: 70523 },
     });
   });
+
+  // Filtrar pela relacao `user` faz o TypeORM montar um SELECT DISTINCT que
+  // exige a chave primaria; sem `id` no select o Postgres responde
+  // "column distinctAlias.WatchedSerie_id does not exist" e a nota some.
+  it('getSerieRating seleciona a chave primaria junto da nota', async () => {
+    repository.findOne.mockResolvedValue({ id: 3, rating: 5 });
+
+    const rate = await service.getSerieRating(42, 70523);
+
+    expect(rate).toBe(5);
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { user: { id: 42 }, idTmdb: 70523 },
+      select: { id: true, rating: true },
+    });
+  });
 });
 
 describe('WatchedSerieService.updateWatchedAt', () => {
